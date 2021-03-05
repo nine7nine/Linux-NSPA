@@ -411,7 +411,8 @@ static int put_sem_state(struct winesync_obj *sem, __u32 count)
 	return 0;
 }
 
-static int winesync_put_sem(struct winesync_device *dev, void __user *argp)
+static int winesync_put_sem(struct winesync_device *dev, void __user *argp,
+			    bool pulse)
 {
 	struct winesync_sem_args __user *user_args = argp;
 	struct winesync_sem_args args;
@@ -441,6 +442,9 @@ static int winesync_put_sem(struct winesync_device *dev, void __user *argp)
 			try_wake_any_sem(sem);
 		}
 
+		if (pulse)
+			sem->u.sem.count = 0;
+
 		spin_unlock(&sem->lock);
 		spin_unlock(&dev->wait_all_lock);
 	} else {
@@ -450,6 +454,9 @@ static int winesync_put_sem(struct winesync_device *dev, void __user *argp)
 		ret = put_sem_state(sem, args.count);
 		if (!ret)
 			try_wake_any_sem(sem);
+
+		if (pulse)
+			sem->u.sem.count = 0;
 
 		spin_unlock(&sem->lock);
 	}
@@ -959,7 +966,9 @@ static long winesync_char_ioctl(struct file *file, unsigned int cmd,
 	case WINESYNC_IOC_DELETE:
 		return winesync_delete(dev, argp);
 	case WINESYNC_IOC_PUT_SEM:
-		return winesync_put_sem(dev, argp);
+		return winesync_put_sem(dev, argp, false);
+	case WINESYNC_IOC_PULSE_SEM:
+		return winesync_put_sem(dev, argp, true);
 	case WINESYNC_IOC_PUT_MUTEX:
 		return winesync_put_mutex(dev, argp);
 	case WINESYNC_IOC_READ_SEM:
