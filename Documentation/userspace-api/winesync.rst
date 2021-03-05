@@ -166,6 +166,41 @@ The ioctls are as follows:
   The operation is atomic and totally ordered with respect to other
   operations on the same semaphore.
 
+.. c:macro:: WINESYNC_IOC_PULSE_SEM
+
+  This operation is identical to ``WINESYNC_IOC_PUT_SEM``, with one
+  notable exception: the semaphore is always left in an *unsignaled*
+  state, regardless of the initial count or the count added by the
+  ioctl. That is, the count after a pulse operation will always be
+  zero.
+
+  A pulse operation can be thought of as a put operation, followed by
+  clearing the semaphore's current count back to zero. Confer the
+  following examples:
+
+  * If three eligible threads are waiting on a semaphore, all with
+    ``WINESYNC_WAIT_FLAG_GET``, and the semaphore is pulsed with a
+    count of 2, only two of them will be woken, and the third will
+    remain asleep.
+
+  * If only one such thread is waiting, it will be woken up, but the
+    semaphore's count will remain at zero.
+
+  * If three eligible threads are waiting and none of them specify
+    ``WINESYNC_WAIT_FLAG_GET``, all three threads will be woken, and
+    the semaphore's count will remain at zero.
+
+  In either case, a simultaneous ``WINESYNC_IOC_READ_SEM`` ioctl from
+  another thread will always report a count of zero.
+
+  If adding ``count`` to the semaphore's current count would raise the
+  latter past the semaphore's maximum count, the ioctl fails with
+  ``EOVERFLOW``. However, in this case the semaphore's count will
+  still be reset to zero.
+
+  The operation is atomic and totally ordered with respect to other
+  operations on the same semaphore.
+
 .. c:macro:: WINESYNC_IOC_PUT_MUTEX
 
   Release a mutex object. Takes a pointer to struct
