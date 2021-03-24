@@ -882,7 +882,7 @@ void bfq_bfqq_charge_time(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			  unsigned long time_ms)
 {
 	struct bfq_entity *entity = &bfqq->entity;
-	unsigned long timeout_ms = jiffies_to_msecs(bfq_timeout);
+	unsigned long timeout_ms = jiffies_to_msecs(bfqd->bfq_timeout);
 	unsigned long bounded_time_ms = min(time_ms, timeout_ms);
 	int serv_to_charge_for_time =
 		(bfqd->bfq_max_budget * bounded_time_ms) / timeout_ms;
