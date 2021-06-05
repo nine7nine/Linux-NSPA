@@ -56,6 +56,8 @@
 #include <asm/cacheflush.h>
 #include <asm/syscall.h>	/* for syscall_get_* */
 
+#include <brute/brute.h>
+
 /*
  * SLAB caches for signal bits.
  */
@@ -2063,7 +2065,7 @@ bool do_notify_parent(struct task_struct *tsk, int sig)
 	if (tsk->exit_code & 0x80)
 		info.si_code = CLD_DUMPED;
 	else if (tsk->exit_code & 0x7f)
-		info.si_code = CLD_KILLED;
+		info.si_code = brute_task_killed(tsk) ? CLD_BRUTE : CLD_KILLED;
 	else {
 		info.si_code = CLD_EXITED;
 		info.si_status = tsk->exit_code >> 8;
