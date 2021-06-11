@@ -59,7 +59,7 @@ shared across multiple processes.
 ioctl reference
 ===============
 
-All operations on the device are done through ioctls. There are three
+All operations on the device are done through ioctls. There are four
 structures used in ioctl calls::
 
    struct winesync_sem_args {
@@ -72,6 +72,12 @@ structures used in ioctl calls::
    	__u32 mutex;
    	__u32 owner;
    	__u32 count;
+   };
+
+   /* used in struct winesync_wait_args */
+   struct winesync_wait_obj {
+   	__u32 obj;
+   	__u32 flags;
    };
 
    struct winesync_wait_args {
@@ -238,9 +244,9 @@ The ioctls are as follows:
 
 .. c:macro:: WINESYNC_IOC_WAIT_ANY
 
-  Poll on any of a list of objects, atomically acquiring at most one.
-  Takes a pointer to struct :c:type:`winesync_wait_args`, which is
-  used as follows:
+  Poll on any of a list of objects, possibly acquiring at most one of
+  them. Takes a pointer to struct :c:type:`winesync_wait_args`, which
+  is used as follows:
 
     ``sigmask`` is an optional input-only pointer to a
     :c:type:`sigset_t` structure (specified as an integer so that the
@@ -262,10 +268,14 @@ The ioctls are as follows:
     ``timeout`` is zero, i.e. NULL, the function will sleep until an
     object is signaled, and will not fail with ``ETIMEDOUT``.
 
-    ``objs`` is a input-only pointer to an array of ``count`` 32-bit
-    object identifiers (specified as an integer so that the structure
-    has the same size regardless of architecture). If any identifier
-    is invalid, the function fails with ``EINVAL``.
+    ``objs`` is a input-only pointer to an array of ``count``
+    consecutive ``winesync_wait_obj`` structures (specified as an
+    integer so that the structure has the same size regardless of
+    architecture). In each structure, ``obj`` denotes an object to
+    wait for, and ``flags`` specifies a combination of zero or more
+    ``WINESYNC_WAIT_FLAG_*`` flags modifying the behaviour when
+    waiting for that object. If any identifier is invalid, the
+    function fails with ``EINVAL``.
 
     ``owner`` is an input-only argument denoting the mutex owner
     identifier. If any object in ``objs`` is a mutex, the ioctl will
@@ -278,11 +288,15 @@ The ioctls are as follows:
 
     ``pad`` is unused, and exists to keep a consistent structure size.
 
-  This function attempts to acquire one of the given objects. If
-  unable to do so, it sleeps until an object becomes signaled,
-  subsequently acquiring it, or the timeout expires. In the latter
-  case the ioctl fails with ``ETIMEDOUT``. The function only acquires
-  one object, even if multiple objects are signaled.
+  This function sleeps until one or more of the given objects is
+  signaled, subsequently returning the index of the first signaled
+  object, or until the timeout expires. In the latter case it fails
+  with ``ETIMEDOUT``.
+
+  Each object may optionally be accompanied by the
+  ``WINESYNC_WAIT_FLAG_GET`` flag. If an object marked with this flag
+  becomes signaled, the object will be atomically acquired by the
+  waiter.
 
   A semaphore is considered to be signaled if its count is nonzero,
   and is acquired by decrementing its count by one. A mutex is
@@ -293,16 +307,27 @@ The ioctls are as follows:
 
   Acquisition is atomic and totally ordered with respect to other
   operations on the same object. If two wait operations (with
-  different ``owner`` identifiers) are queued on the same mutex, only
-  one is signaled. If two wait operations are queued on the same
-  semaphore, and a value of one is posted to it, only one is signaled.
-  The order in which threads are signaled is not specified.
+  different ``owner`` identifiers) are queued on the same mutex, both
+  with the ``WINESYNC_WAIT_FLAG_GET`` flag set, only one is signaled.
+  If two wait operations are queued on the same semaphore, both with
+  the ``WINESYNC_WAIT_FLAG_GET`` flag set, and a value of one is
+  posted to it, only one is signaled. The order in which threads are
+  signaled is not specified.
 
-  If an inconsistent mutex is acquired, the ioctl fails with
-  ``EOWNERDEAD``. Although this is a failure return, the function may
-  otherwise be considered successful. The mutex is marked as owned by
-  the given owner (with a recursion count of 1) and as no longer
-  inconsistent, and ``index`` is still set to the index of the mutex.
+  On the other hand, if neither waiter specifies
+  ``WINESYNC_WAIT_FLAG_GET``, and the object becomes signaled, both
+  waiters will be woken, and the object will not be modified. If one
+  waiter specifies ``WINESYNC_WAIT_FLAG_GET``, that waiter will be
+  woken and will acquire the object; it is unspecified whether the
+  other waiter will be woken.
+
+  If a mutex is inconsistent (in which case it is unacquired and
+  therefore signaled), the ioctl fails with ``EOWNERDEAD``. Although
+  this is a failure return, the function may otherwise be considered
+  successful, and ``index`` is still set to the index of the mutex. If
+  ``WINESYNC_WAIT_FLAG_GET`` is specified for said mutex, the mutex is
+  marked as owned by the given owner (with a recursion count of 1) and
+  as no longer inconsistent.
 
   It is valid to pass the same object more than once. If a wakeup
   occurs due to that object being signaled, ``index`` is set to the
@@ -313,28 +338,32 @@ The ioctls are as follows:
 
 .. c:macro:: WINESYNC_IOC_WAIT_ALL
 
-  Poll on a list of objects, atomically acquiring all of them. Takes a
-  pointer to struct :c:type:`winesync_wait_args`, which is used
-  identically to ``WINESYNC_IOC_WAIT_ANY``, except that ``index`` is
-  always filled with zero on success.
+  Poll on a list of objects, waiting until all of them are
+  simultaneously signaled. Takes a pointer to struct
+  :c:type:`winesync_wait_args`, which is used identically to
+  ``WINESYNC_IOC_WAIT_ANY``, except that ``index`` is always filled
+  with zero on success.
 
-  This function attempts to simultaneously acquire all of the given
-  objects. If unable to do so, it sleeps until all objects become
-  simultaneously signaled, subsequently acquiring them, or the timeout
-  expires. In the latter case the ioctl fails with ``ETIMEDOUT`` and
-  no objects are modified.
+  This function sleeps until all of the given objects are signaled. If
+  all objects are not simultaneously signaled at any point before the
+  timeout expires, it fails with ``ETIMEDOUT``.
 
   Objects may become signaled and subsequently designaled (through
   acquisition by other threads) while this thread is sleeping. Only
-  once all objects are simultaneously signaled does the ioctl acquire
-  them and return. The entire acquisition is atomic and totally
-  ordered with respect to other operations on any of the given
-  objects.
+  once all objects are simultaneously signaled does the ioctl return.
 
-  If an inconsistent mutex is acquired, the ioctl fails with
-  ``EOWNERDEAD``. Similarly to ``WINESYNC_IOC_WAIT_ANY``, all objects
-  are nevertheless marked as acquired. Note that if multiple mutex
-  objects are specified, there is no way to know which were marked as
+  The flag ``WINESYNC_WAIT_FLAG_GET`` may optionally be specified for
+  some or all of the objects, in which case the function will also
+  simultaneously acquire every object so marked. The entire
+  acquisition is atomic and totally ordered with respect to other
+  operations on any of the given objects.
+
+  If any mutex waited for is inconsistent at the time the function
+  returns, the ioctl fails with ``EOWNERDEAD``. Similarly to
+  ``WINESYNC_IOC_WAIT_ANY``, the function may be considered to have
+  succeeded, and all objects marked with ``WINESYNC_WIAT_FLAG_GET``
+  are still acquired. Note that if multiple mutex objects are
+  specified, there is no way to know which were marked as
   inconsistent.
 
   Unlike ``WINESYNC_IOC_WAIT_ANY``, it is not valid to pass the same
