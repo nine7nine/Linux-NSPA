@@ -22,6 +22,13 @@ struct winesync_mutex_args {
 	__u32 count;
 };
 
+#define WINESYNC_WAIT_FLAG_GET (1 << 0)
+
+struct winesync_wait_obj {
+	__u32 obj;
+	__u32 flags;
+};
+
 struct winesync_wait_args {
 	__u64 sigmask;
 	__u64 sigsetsize;
