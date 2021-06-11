@@ -75,6 +75,7 @@ struct winesync_q_entry {
 	struct list_head node;
 	struct winesync_q *q;
 	struct winesync_obj *obj;
+	__u32 flags;
 	__u32 index;
 };
 
@@ -225,18 +226,23 @@ static void try_wake_all(struct winesync_device *dev, struct winesync_q *q,
 
 	if (can_wake && atomic_cmpxchg(&q->signaled, -1, 0) == -1) {
 		for (i = 0; i < count; i++) {
-			struct winesync_obj *obj = q->entries[i].obj;
+			struct winesync_q_entry *entry = &q->entries[i];
+			struct winesync_obj *obj = entry->obj;
 
 			switch (obj->type) {
 			case WINESYNC_TYPE_SEM:
-				obj->u.sem.count--;
+				if (entry->flags & WINESYNC_WAIT_FLAG_GET)
+					obj->u.sem.count--;
 				break;
 			case WINESYNC_TYPE_MUTEX:
 				if (obj->u.mutex.ownerdead)
 					q->ownerdead = true;
-				obj->u.mutex.ownerdead = false;
-				obj->u.mutex.count++;
-				obj->u.mutex.owner = q->owner;
+
+				if (entry->flags & WINESYNC_WAIT_FLAG_GET) {
+					obj->u.mutex.ownerdead = false;
+					obj->u.mutex.count++;
+					obj->u.mutex.owner = q->owner;
+				}
 				break;
 			}
 		}
@@ -274,7 +280,8 @@ static void try_wake_any_sem(struct winesync_obj *sem)
 			break;
 
 		if (atomic_cmpxchg(&q->signaled, -1, entry->index) == -1) {
-			sem->u.sem.count--;
+			if (entry->flags & WINESYNC_WAIT_FLAG_GET)
+				sem->u.sem.count--;
 			wake_up_process(q->task);
 		}
 	}
@@ -297,9 +304,12 @@ static void try_wake_any_mutex(struct winesync_obj *mutex)
 		if (atomic_cmpxchg(&q->signaled, -1, entry->index) == -1) {
 			if (mutex->u.mutex.ownerdead)
 				q->ownerdead = true;
-			mutex->u.mutex.ownerdead = false;
-			mutex->u.mutex.count++;
-			mutex->u.mutex.owner = q->owner;
+
+			if (entry->flags & WINESYNC_WAIT_FLAG_GET) {
+				mutex->u.mutex.ownerdead = false;
+				mutex->u.mutex.count++;
+				mutex->u.mutex.owner = q->owner;
+			}
 			wake_up_process(q->task);
 		}
 	}
@@ -682,9 +692,9 @@ static int setup_wait(struct winesync_device *dev,
 {
 	const void __user *sigmask = u64_to_user_ptr(args->sigmask);
 	const __u32 count = args->count;
+	struct winesync_wait_obj *objs;
 	struct winesync_q *q;
 	ktime_t timeout = 0;
-	__u32 *ids;
 	__u32 i, j;
 	int ret;
 
@@ -709,18 +719,18 @@ static int setup_wait(struct winesync_device *dev,
 		timeout = timespec64_to_ns(&to);
 	}
 
-	ids = kmalloc_array(args->count, sizeof(*ids), GFP_KERNEL);
-	if (!ids)
+	objs = kmalloc_array(args->count, sizeof(*objs), GFP_KERNEL);
+	if (!objs)
 		return -ENOMEM;
-	if (copy_from_user(ids, u64_to_user_ptr(args->objs),
-			   array_size(args->count, sizeof(*ids)))) {
-		kfree(ids);
+	if (copy_from_user(objs, u64_to_user_ptr(args->objs),
+			   array_size(args->count, sizeof(*objs)))) {
+		kfree(objs);
 		return -EFAULT;
 	}
 
 	q = kmalloc(struct_size(q, entries, count), GFP_KERNEL);
 	if (!q) {
-		kfree(ids);
+		kfree(objs);
 		return -ENOMEM;
 	}
 	q->task = current;
@@ -732,7 +742,7 @@ static int setup_wait(struct winesync_device *dev,
 
 	for (i = 0; i < count; i++) {
 		struct winesync_q_entry *entry = &q->entries[i];
-		struct winesync_obj *obj = get_obj(dev, ids[i]);
+		struct winesync_obj *obj = get_obj(dev, objs[i].obj);
 
 		if (!obj)
 			goto err;
@@ -750,9 +760,10 @@ static int setup_wait(struct winesync_device *dev,
 		entry->obj = obj;
 		entry->q = q;
 		entry->index = i;
+		entry->flags = objs[i].flags;
 	}
 
-	kfree(ids);
+	kfree(objs);
 
 	*ret_q = q;
 	*ret_timeout = timeout;
@@ -761,7 +772,7 @@ static int setup_wait(struct winesync_device *dev,
 err:
 	for (j = 0; j < i; j++)
 		put_obj(q->entries[j].obj);
-	kfree(ids);
+	kfree(objs);
 	kfree(q);
 	return -EINVAL;
 }

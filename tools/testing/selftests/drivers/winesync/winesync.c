@@ -18,6 +18,7 @@ TEST(semaphore_state)
 {
 	struct winesync_wait_args wait_args = {0};
 	struct winesync_sem_args sem_args;
+	struct winesync_wait_obj wait_obj;
 	struct timespec timeout;
 	int fd, ret;
 
@@ -71,8 +72,10 @@ TEST(semaphore_state)
 	EXPECT_EQ(2, sem_args.count);
 	EXPECT_EQ(2, sem_args.max);
 
+	wait_obj.obj = sem_args.sem;
+	wait_obj.flags = WINESYNC_WAIT_FLAG_GET;
 	wait_args.timeout = (uintptr_t)&timeout;
-	wait_args.objs = (uintptr_t)&sem_args.sem;
+	wait_args.objs = (uintptr_t)&wait_obj;
 	wait_args.count = 1;
 	wait_args.owner = 123;
 	wait_args.index = 0xdeadbeef;
@@ -154,6 +157,7 @@ TEST(mutex_state)
 {
 	struct winesync_wait_args wait_args = {0};
 	struct winesync_mutex_args mutex_args;
+	struct winesync_wait_obj wait_obj;
 	struct timespec timeout;
 	__u32 owner;
 	int fd, ret;
@@ -240,8 +244,10 @@ TEST(mutex_state)
 	EXPECT_EQ(-1, ret);
 	EXPECT_EQ(EPERM, errno);
 
+	wait_obj.obj = mutex_args.mutex;
+	wait_obj.flags = WINESYNC_WAIT_FLAG_GET;
 	wait_args.timeout = (uintptr_t)&timeout;
-	wait_args.objs = (uintptr_t)&mutex_args.mutex;
+	wait_args.objs = (uintptr_t)&wait_obj;
 	wait_args.count = 1;
 	wait_args.owner = 456;
 	wait_args.index = 0xdeadbeef;
@@ -405,8 +411,9 @@ TEST(wait_any)
 	struct winesync_mutex_args mutex_args = {0};
 	struct winesync_wait_args wait_args = {0};
 	struct winesync_sem_args sem_args = {0};
+	struct winesync_wait_obj wait_objs[2];
 	struct timespec timeout;
-	__u32 objs[2], owner;
+	__u32 owner;
 	int fd, ret;
 
 	clock_gettime(CLOCK_MONOTONIC, &timeout);
@@ -428,18 +435,20 @@ TEST(wait_any)
 	EXPECT_EQ(0, ret);
 	EXPECT_NE(0xdeadbeef, mutex_args.mutex);
 
-	objs[0] = sem_args.sem;
-	objs[1] = mutex_args.mutex;
+	wait_objs[0].obj = sem_args.sem;
+	wait_objs[0].flags = WINESYNC_WAIT_FLAG_GET;
+	wait_objs[1].obj = mutex_args.mutex;
+	wait_objs[1].flags = WINESYNC_WAIT_FLAG_GET;
 
 	wait_args.timeout = (uintptr_t)&timeout;
-	wait_args.objs = (uintptr_t)objs;
+	wait_args.objs = (uintptr_t)wait_objs;
 	wait_args.count = 2;
 	wait_args.owner = 123;
 	wait_args.index = 0xdeadbeef;
 	ret = ioctl(fd, WINESYNC_IOC_WAIT_ANY, &wait_args);
 	EXPECT_EQ(0, ret);
 	EXPECT_EQ(0, wait_args.index);
-	EXPECT_EQ((uintptr_t)objs, wait_args.objs);
+	EXPECT_EQ((uintptr_t)wait_objs, wait_args.objs);
 	EXPECT_EQ(2, wait_args.count);
 	EXPECT_EQ(123, wait_args.owner);
 
@@ -571,7 +580,7 @@ TEST(wait_any)
 	EXPECT_EQ(0, ret);
 	EXPECT_EQ(0, sem_args.count);
 
-	objs[0] = objs[1] = sem_args.sem;
+	wait_objs[0].obj = wait_objs[1].obj = sem_args.sem;
 	ret = ioctl(fd, WINESYNC_IOC_WAIT_ANY, &wait_args);
 	EXPECT_EQ(0, ret);
 	EXPECT_EQ(0, wait_args.index);
@@ -602,8 +611,9 @@ TEST(wait_all)
 	struct winesync_mutex_args mutex_args = {0};
 	struct winesync_wait_args wait_args = {0};
 	struct winesync_sem_args sem_args = {0};
+	struct winesync_wait_obj wait_objs[2];
 	struct timespec timeout;
-	__u32 objs[2], owner;
+	__u32 owner;
 	int fd, ret;
 
 	clock_gettime(CLOCK_MONOTONIC, &timeout);
@@ -625,16 +635,18 @@ TEST(wait_all)
 	EXPECT_EQ(0, ret);
 	EXPECT_NE(0xdeadbeef, mutex_args.mutex);
 
-	objs[0] = sem_args.sem;
-	objs[1] = mutex_args.mutex;
+	wait_objs[0].obj = sem_args.sem;
+	wait_objs[0].flags = WINESYNC_WAIT_FLAG_GET;
+	wait_objs[1].obj = mutex_args.mutex;
+	wait_objs[1].flags = WINESYNC_WAIT_FLAG_GET;
 
 	wait_args.timeout = (uintptr_t)&timeout;
-	wait_args.objs = (uintptr_t)objs;
+	wait_args.objs = (uintptr_t)wait_objs;
 	wait_args.count = 2;
 	wait_args.owner = 123;
 	ret = ioctl(fd, WINESYNC_IOC_WAIT_ALL, &wait_args);
 	EXPECT_EQ(0, ret);
-	EXPECT_EQ((uintptr_t)objs, wait_args.objs);
+	EXPECT_EQ((uintptr_t)wait_objs, wait_args.objs);
 	EXPECT_EQ(2, wait_args.count);
 	EXPECT_EQ(123, wait_args.owner);
 
@@ -735,7 +747,7 @@ TEST(wait_all)
 	EXPECT_EQ(123, mutex_args.owner);
 
 	/* test waiting on the same object twice */
-	objs[0] = objs[1] = sem_args.sem;
+	wait_objs[0].obj = wait_objs[1].obj = sem_args.sem;
 	ret = ioctl(fd, WINESYNC_IOC_WAIT_ALL, &wait_args);
 	EXPECT_EQ(-1, ret);
 	EXPECT_EQ(EINVAL, errno);
@@ -751,9 +763,9 @@ TEST(wait_all)
 TEST(invalid_objects)
 {
 	struct winesync_mutex_args mutex_args = {0};
+	struct winesync_wait_obj wait_objs[2] = {0};
 	struct winesync_wait_args wait_args = {0};
 	struct winesync_sem_args sem_args = {0};
-	__u32 objs[2] = {0};
 	int fd, ret;
 
 	fd = open("/dev/winesync", O_CLOEXEC | O_RDONLY);
@@ -775,7 +787,7 @@ TEST(invalid_objects)
 	EXPECT_EQ(-1, ret);
 	EXPECT_EQ(EINVAL, errno);
 
-	wait_args.objs = (uintptr_t)objs;
+	wait_args.objs = (uintptr_t)wait_objs;
 	wait_args.count = 1;
 	ret = ioctl(fd, WINESYNC_IOC_WAIT_ANY, &wait_args);
 	EXPECT_EQ(-1, ret);
@@ -784,7 +796,7 @@ TEST(invalid_objects)
 	EXPECT_EQ(-1, ret);
 	EXPECT_EQ(EINVAL, errno);
 
-	ret = ioctl(fd, WINESYNC_IOC_DELETE, &objs[0]);
+	ret = ioctl(fd, WINESYNC_IOC_DELETE, &sem_args.sem);
 	EXPECT_EQ(-1, ret);
 	EXPECT_EQ(EINVAL, errno);
 
@@ -801,8 +813,8 @@ TEST(invalid_objects)
 	EXPECT_EQ(-1, ret);
 	EXPECT_EQ(EINVAL, errno);
 
-	objs[0] = sem_args.sem;
-	objs[1] = sem_args.sem + 1;
+	wait_objs[0].obj = sem_args.sem;
+	wait_objs[1].obj = sem_args.sem + 1;
 	wait_args.count = 2;
 	ret = ioctl(fd, WINESYNC_IOC_WAIT_ANY, &wait_args);
 	EXPECT_EQ(-1, ret);
@@ -811,8 +823,8 @@ TEST(invalid_objects)
 	EXPECT_EQ(-1, ret);
 	EXPECT_EQ(EINVAL, errno);
 
-	objs[0] = sem_args.sem + 1;
-	objs[1] = sem_args.sem;
+	wait_objs[0].obj = sem_args.sem + 1;
+	wait_objs[1].obj = sem_args.sem;
 	ret = ioctl(fd, WINESYNC_IOC_WAIT_ANY, &wait_args);
 	EXPECT_EQ(-1, ret);
 	EXPECT_EQ(EINVAL, errno);
@@ -886,10 +898,11 @@ TEST(wake_any)
 	struct winesync_mutex_args mutex_args = {0};
 	struct winesync_wait_args wait_args = {0};
 	struct winesync_sem_args sem_args = {0};
+	struct winesync_wait_obj wait_objs[2];
 	struct wait_args thread_args;
 	struct timespec timeout;
-	__u32 objs[2], owner;
 	pthread_t thread;
+	__u32 owner;
 	int fd, ret;
 
 	fd = open("/dev/winesync", O_CLOEXEC | O_RDONLY);
@@ -909,14 +922,16 @@ TEST(wake_any)
 	EXPECT_EQ(0, ret);
 	EXPECT_NE(0xdeadbeef, mutex_args.mutex);
 
-	objs[0] = sem_args.sem;
-	objs[1] = mutex_args.mutex;
+	wait_objs[0].obj = sem_args.sem;
+	wait_objs[0].flags = WINESYNC_WAIT_FLAG_GET;
+	wait_objs[1].obj = mutex_args.mutex;
+	wait_objs[1].flags = WINESYNC_WAIT_FLAG_GET;
 
 	/* test waking the semaphore */
 
 	get_abs_timeout(&timeout, CLOCK_MONOTONIC, 1000);
 	wait_args.timeout = (uintptr_t)&timeout;
-	wait_args.objs = (uintptr_t)objs;
+	wait_args.objs = (uintptr_t)wait_objs;
 	wait_args.count = 2;
 	wait_args.owner = 456;
 	wait_args.index = 0xdeadbeef;
@@ -1010,12 +1025,13 @@ TEST(wake_any)
 TEST(wake_all)
 {
 	struct winesync_wait_args wait_args = {0}, wait_args2 = {0};
+	struct winesync_wait_obj wait_objs[2], wait_obj2;
 	struct winesync_mutex_args mutex_args = {0};
 	struct winesync_sem_args sem_args = {0};
 	struct timespec timeout, timeout2;
 	struct wait_args thread_args;
-	__u32 objs[2], owner;
 	pthread_t thread;
+	__u32 owner;
 	int fd, ret;
 
 	fd = open("/dev/winesync", O_CLOEXEC | O_RDONLY);
@@ -1035,12 +1051,14 @@ TEST(wake_all)
 	EXPECT_EQ(0, ret);
 	EXPECT_NE(0xdeadbeef, mutex_args.mutex);
 
-	objs[0] = sem_args.sem;
-	objs[1] = mutex_args.mutex;
+	wait_objs[0].obj = sem_args.sem;
+	wait_objs[0].flags = WINESYNC_WAIT_FLAG_GET;
+	wait_objs[1].obj = mutex_args.mutex;
+	wait_objs[1].flags = WINESYNC_WAIT_FLAG_GET;
 
 	get_abs_timeout(&timeout, CLOCK_MONOTONIC, 1000);
 	wait_args.timeout = (uintptr_t)&timeout;
-	wait_args.objs = (uintptr_t)objs;
+	wait_args.objs = (uintptr_t)wait_objs;
 	wait_args.count = 2;
 	wait_args.owner = 456;
 	thread_args.fd = fd;
@@ -1064,9 +1082,11 @@ TEST(wake_all)
 	EXPECT_EQ(0, ret);
 	EXPECT_EQ(1, sem_args.count);
 
+	wait_obj2.obj = sem_args.sem;
+	wait_obj2.flags = WINESYNC_WAIT_FLAG_GET;
 	get_abs_timeout(&timeout2, CLOCK_MONOTONIC, 0);
 	wait_args2.timeout = (uintptr_t)&timeout2;
-	wait_args2.objs = (uintptr_t)&sem_args.sem;
+	wait_args2.objs = (uintptr_t)&wait_obj2;
 	wait_args2.count = 1;
 	wait_args2.owner = 123;
 	wait_args2.index = 0xdeadbeef;
