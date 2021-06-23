@@ -1005,7 +1005,11 @@ struct df_reg {
  *
  * Fabric Indirect Configuration Access Data (FICAD): There are FICAD LO
  * and FICAD HI registers but so far we only need the LO register.
+ *
+ * Use Instance Id 0xFF to indicate a broadcast read.
  */
+
+#define DF_BROADCAST	0xFF
 static int amd_df_indirect_read(u16 node, struct df_reg reg, u8 instance_id, u32 *lo)
 {
 	struct pci_dev *F4;
@@ -1019,7 +1023,7 @@ static int amd_df_indirect_read(u16 node, struct df_reg reg, u8 instance_id, u32
 	if (!F4)
 		goto out;
 
-	ficaa  = 1;
+	ficaa  = (instance_id == DF_BROADCAST) ? 0 : 1;
 	ficaa |= reg.offset & 0x3FC;
 	ficaa |= (reg.func & 0x7) << 11;
 	ficaa |= instance_id << 16;
