@@ -1074,16 +1074,26 @@ static struct df_reg df_regs[] = {
 	[SYS_FAB_ID_MASK]	=	{1, 0x208},
 };
 
+/* Use "reg_" prefix for raw register values. */
 struct addr_ctx {
 	u64 ret_addr;
+	u32 reg_dram_offset;
 	u16 nid;
 	u8 inst_id;
+	u8 map_num;
 };
 
 struct data_fabric_ops {
+	u64 (*get_hi_addr_offset)(struct addr_ctx *ctx);
 };
 
+static u64 get_hi_addr_offset_df2(struct addr_ctx *ctx)
+{
+	return (ctx->reg_dram_offset & GENMASK_ULL(31, 20)) << 8;
+}
+
 struct data_fabric_ops df2_ops = {
+	.get_hi_addr_offset		=	&get_hi_addr_offset_df2,
 };
 
 struct data_fabric_ops *df_ops;
@@ -1091,6 +1101,35 @@ struct data_fabric_ops *df_ops;
 static int set_df_ops(struct addr_ctx *ctx)
 {
 	df_ops = &df2_ops;
+
+	return 0;
+}
+
+static int get_dram_offset_reg(struct addr_ctx *ctx)
+{
+	if (amd_df_indirect_read(ctx->nid, df_regs[DRAM_OFFSET],
+				 ctx->inst_id, &ctx->reg_dram_offset))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int remove_dram_offset(struct addr_ctx *ctx)
+{
+	if (get_dram_offset_reg(ctx))
+		return -EINVAL;
+
+	ctx->map_num = 0;
+
+	/* Remove HiAddrOffset from normalized address, if enabled: */
+	if (ctx->reg_dram_offset & BIT(0)) {
+		u64 hi_addr_offset = df_ops->get_hi_addr_offset(ctx);
+
+		if (ctx->ret_addr >= hi_addr_offset) {
+			ctx->ret_addr -= hi_addr_offset;
+			ctx->map_num = 1;
+		}
+	}
 
 	return 0;
 }
@@ -1104,7 +1143,7 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 	u8 intlv_num_dies, intlv_num_chan, intlv_num_sockets;
 	u8 intlv_addr_sel, intlv_addr_bit;
 	u8 num_intlv_bits, hashed_bit;
-	u8 lgcy_mmio_hole_en, base = 0;
+	u8 lgcy_mmio_hole_en;
 	u8 cs_mask, cs_id = 0;
 	bool hash_enabled = false;
 
@@ -1123,21 +1162,11 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 	if (set_df_ops(&ctx))
 		return -EINVAL;
 
-	if (amd_df_indirect_read(nid, df_regs[DRAM_OFFSET], umc, &tmp))
+	if (remove_dram_offset(&ctx))
 		goto out_err;
 
-	/* Remove HiAddrOffset from normalized address, if enabled: */
-	if (tmp & BIT(0)) {
-		u64 hi_addr_offset = (tmp & GENMASK_ULL(31, 20)) << 8;
-
-		if (norm_addr >= hi_addr_offset) {
-			ctx.ret_addr -= hi_addr_offset;
-			base = 1;
-		}
-	}
-
 	reg = df_regs[DRAM_BASE_ADDR];
-	reg.offset += base * 8;
+	reg.offset += ctx.map_num * 8;
 	if (amd_df_indirect_read(nid, reg, umc, &tmp))
 		goto out_err;
 
@@ -1161,7 +1190,7 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 	}
 
 	reg = df_regs[DRAM_LIMIT_ADDR];
-	reg.offset += base * 8;
+	reg.offset += ctx.map_num * 8;
 	if (amd_df_indirect_read(nid, reg, umc, &tmp))
 		goto out_err;
 
