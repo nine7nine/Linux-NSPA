@@ -1354,10 +1354,20 @@ static int add_base_and_hole(struct addr_ctx *ctx)
 	return 0;
 }
 
+static int addr_over_limit(struct addr_ctx *ctx)
+{
+	u64 dram_limit_addr  = ((ctx->reg_limit_addr & GENMASK_ULL(31, 12)) << 16)
+					| GENMASK_ULL(27, 0);
+
+	/* Is calculated system address above DRAM limit address? */
+	if (ctx->ret_addr > dram_limit_addr)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
 {
-	u64 dram_limit_addr;
-
 	struct addr_ctx ctx;
 
 	memset(&ctx, 0, sizeof(ctx));
@@ -1383,16 +1393,13 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 	if (denormalize_addr(&ctx))
 		goto out_err;
 
-	dram_limit_addr	  = ((ctx.reg_limit_addr & GENMASK_ULL(31, 12)) << 16) | GENMASK_ULL(27, 0);
-
 	if (add_base_and_hole(&ctx))
 		goto out_err;
 
 	if (ctx.dehash_addr && ctx.dehash_addr(&ctx))
 		goto out_err;
 
-	/* Is calculated system address is above DRAM limit address? */
-	if (ctx.ret_addr > dram_limit_addr)
+	if (addr_over_limit(&ctx))
 		goto out_err;
 
 	*sys_addr = ctx.ret_addr;
