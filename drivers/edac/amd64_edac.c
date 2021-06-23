@@ -988,6 +988,15 @@ static int sys_addr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr)
 	return csrow;
 }
 
+/*
+ * Glossary of acronyms used in address translation for Zen-based systems
+ *
+ * COD		=	Cluster-on-Die
+ * CS		=	Coherent Slave
+ * DF		=	Data Fabric
+ * UMC		=	Unified Memory Controller
+ */
+
 /* Protect the PCI config register pairs used for DF indirect access. */
 static DEFINE_MUTEX(df_indirect_mutex);
 
