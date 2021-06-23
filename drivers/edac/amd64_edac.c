@@ -1080,6 +1080,21 @@ struct addr_ctx {
 	u8 inst_id;
 };
 
+struct data_fabric_ops {
+};
+
+struct data_fabric_ops df2_ops = {
+};
+
+struct data_fabric_ops *df_ops;
+
+static int set_df_ops(struct addr_ctx *ctx)
+{
+	df_ops = &df2_ops;
+
+	return 0;
+}
+
 static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
 {
 	u64 dram_base_addr, dram_limit_addr, dram_hole_base;
@@ -1104,6 +1119,9 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 
 	ctx.nid = nid;
 	ctx.inst_id = umc;
+
+	if (set_df_ops(&ctx))
+		return -EINVAL;
 
 	if (amd_df_indirect_read(nid, df_regs[DRAM_OFFSET], umc, &tmp))
 		goto out_err;
