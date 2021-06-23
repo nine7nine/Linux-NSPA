@@ -1385,28 +1385,25 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 		return -EINVAL;
 
 	if (get_dram_addr_map(&ctx))
-		goto out_err;
+		return -EINVAL;
 
 	if (df_ops->get_intlv_mode(&ctx))
-		goto out_err;
+		return -EINVAL;
 
 	if (denormalize_addr(&ctx))
-		goto out_err;
+		return -EINVAL;
 
 	if (add_base_and_hole(&ctx))
-		goto out_err;
+		return -EINVAL;
 
 	if (ctx.dehash_addr && ctx.dehash_addr(&ctx))
-		goto out_err;
+		return -EINVAL;
 
 	if (addr_over_limit(&ctx))
-		goto out_err;
+		return -EINVAL;
 
 	*sys_addr = ctx.ret_addr;
 	return 0;
-
-out_err:
-	return -EINVAL;
 }
 
 static int get_channel_from_ecc_syndrome(struct mem_ctl_info *, u16);
