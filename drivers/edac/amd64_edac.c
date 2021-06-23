@@ -1366,14 +1366,14 @@ static int addr_over_limit(struct addr_ctx *ctx)
 	return 0;
 }
 
-static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
+static int umc_normaddr_to_sysaddr(u64 *addr, u16 nid, u8 umc)
 {
 	struct addr_ctx ctx;
 
 	memset(&ctx, 0, sizeof(ctx));
 
 	/* We start from the normalized address */
-	ctx.ret_addr = norm_addr;
+	ctx.ret_addr = *addr;
 
 	ctx.nid = nid;
 	ctx.inst_id = umc;
@@ -1402,7 +1402,7 @@ static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr
 	if (addr_over_limit(&ctx))
 		return -EINVAL;
 
-	*sys_addr = ctx.ret_addr;
+	*addr = ctx.ret_addr;
 	return 0;
 }
 
@@ -3329,7 +3329,7 @@ static void decode_umc_error(int node_id, struct mce *m)
 	struct mem_ctl_info *mci;
 	struct amd64_pvt *pvt;
 	struct err_info err;
-	u64 sys_addr;
+	u64 sys_addr = m->addr;
 
 	mci = edac_mc_find(node_id);
 	if (!mci)
@@ -3360,7 +3360,7 @@ static void decode_umc_error(int node_id, struct mce *m)
 
 	err.csrow = m->synd & 0x7;
 
-	if (umc_normaddr_to_sysaddr(m->addr, pvt->mc_node_id, err.channel, &sys_addr)) {
+	if (umc_normaddr_to_sysaddr(&sys_addr, pvt->mc_node_id, err.channel)) {
 		err.err_code = ERR_NORM_ADDR;
 		goto log_error;
 	}
