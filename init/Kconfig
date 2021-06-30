@@ -2314,6 +2314,12 @@ config MODULE_COMPRESS_ZSTD
 
 endchoice
 
+config MODULE_COMPRESS_ZSTD_ULTRA
+	depends on MODULE_COMPRESS_ZSTD
+	bool "Enable ZSTD ultra compression"
+	help
+	  Compress modules with ZSTD using the highest possible compression.
+
 config MODULE_COMPRESS_ZSTD_LEVEL
     int "Compression level (1-19)"
     depends on MODULE_COMPRESS_ZSTD
@@ -2321,6 +2327,14 @@ config MODULE_COMPRESS_ZSTD_LEVEL
     default 19
     help
         Compression level used by zstd for compressing modules.
+
+config MODULE_COMPRESS_ZSTD_LEVEL_ULTRA
+    int "Compression level (20-22)"
+    depends on MODULE_COMPRESS_ZSTD_ULTRA
+    range 20 22
+    default 22
+    help
+        Ultra compression level used by zstd for compressing modules.
 
 config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 	bool "Allow loading of modules with missing namespace imports"
