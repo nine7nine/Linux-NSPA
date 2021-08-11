@@ -178,7 +178,7 @@ static void deadline_remove_request(struct request_queue *q,
 	if (!RB_EMPTY_NODE(&rq->rb_node))
 		deadline_del_rq_rb(per_prio, rq);
 
-	elv_rqhash_del(q, rq);
+	elv_rqhash_del(rq);
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
 }
