@@ -42,8 +42,8 @@ struct elevator_mq_ops {
 	bool (*has_work)(struct blk_mq_hw_ctx *);
 	void (*completed_request)(struct request *, u64);
 	void (*requeue_request)(struct request *);
-	struct request *(*former_request)(struct request_queue *, struct request *);
-	struct request *(*next_request)(struct request_queue *, struct request *);
+	struct request *(*former_request)(struct request *);
+	struct request *(*next_request)(struct request *);
 	void (*init_icq)(struct io_cq *);
 	void (*exit_icq)(struct io_cq *);
 };
@@ -86,7 +86,7 @@ struct elevator_type
 
 #define ELV_HASH_BITS 6
 
-void elv_rqhash_del(struct request_queue *q, struct request *rq);
+void elv_rqhash_del(struct request *rq);
 void elv_rqhash_add(struct request_queue *q, struct request *rq);
 void elv_rqhash_reposition(struct request_queue *q, struct request *rq);
 struct request *elv_rqhash_find(struct request_queue *q, sector_t offset);
@@ -138,8 +138,8 @@ extern struct elevator_queue *elevator_alloc(struct request_queue *,
 /*
  * Helper functions.
  */
-extern struct request *elv_rb_former_request(struct request_queue *, struct request *);
-extern struct request *elv_rb_latter_request(struct request_queue *, struct request *);
+extern struct request *elv_rb_former_request(struct request *);
+extern struct request *elv_rb_latter_request(struct request *);
 
 /*
  * rb support functions.

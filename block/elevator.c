@@ -203,7 +203,7 @@ static inline void __elv_rqhash_del(struct request *rq)
 	rq->rq_flags &= ~RQF_HASHED;
 }
 
-void elv_rqhash_del(struct request_queue *q, struct request *rq)
+void elv_rqhash_del(struct request *rq)
 {
 	if (ELV_ON_HASH(rq))
 		__elv_rqhash_del(rq);
@@ -425,7 +425,7 @@ struct request *elv_latter_request(struct request_queue *q, struct request *rq)
 	struct elevator_queue *e = q->elevator;
 
 	if (e->type->ops.next_request)
-		return e->type->ops.next_request(q, rq);
+		return e->type->ops.next_request(rq);
 
 	return NULL;
 }
@@ -435,7 +435,7 @@ struct request *elv_former_request(struct request_queue *q, struct request *rq)
 	struct elevator_queue *e = q->elevator;
 
 	if (e->type->ops.former_request)
-		return e->type->ops.former_request(q, rq);
+		return e->type->ops.former_request(rq);
 
 	return NULL;
 }
@@ -823,8 +823,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	return len;
 }
 
-struct request *elv_rb_former_request(struct request_queue *q,
-				      struct request *rq)
+struct request *elv_rb_former_request(struct request *rq)
 {
 	struct rb_node *rbprev = rb_prev(&rq->rb_node);
 
@@ -835,8 +834,7 @@ struct request *elv_rb_former_request(struct request_queue *q,
 }
 EXPORT_SYMBOL(elv_rb_former_request);
 
-struct request *elv_rb_latter_request(struct request_queue *q,
-				      struct request *rq)
+struct request *elv_rb_latter_request(struct request *rq)
 {
 	struct rb_node *rbnext = rb_next(&rq->rb_node);
 
