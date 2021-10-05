@@ -22,7 +22,7 @@
 /*-*************************************
 *  Superblock entropy buffer structs
 ***************************************/
-/** ZSTD_hufCTablesMetadata_t :
+/* ZSTD_hufCTablesMetadata_t :
  *  Stores Literals Block Type for a super-block in hType, and
  *  huffman tree description in hufDesBuffer.
  *  hufDesSize refers to the size of huffman tree description in bytes.
@@ -33,7 +33,7 @@ typedef struct {
     size_t hufDesSize;
 } ZSTD_hufCTablesMetadata_t;
 
-/** ZSTD_fseCTablesMetadata_t :
+/* ZSTD_fseCTablesMetadata_t :
  *  Stores symbol compression modes for a super-block in {ll, ol, ml}Type, and
  *  fse tables in fseTablesBuffer.
  *  fseTablesSize refers to the size of fse tables in bytes.
@@ -53,7 +53,7 @@ typedef struct {
 } ZSTD_entropyCTablesMetadata_t;
 
 
-/** ZSTD_buildSuperBlockEntropy_literal() :
+/* ZSTD_buildSuperBlockEntropy_literal() :
  *  Builds entropy for the super-block literals.
  *  Stores literals block type (raw, rle, compressed, repeat) and
  *  huffman description table to hufMetadata.
@@ -157,7 +157,7 @@ static size_t ZSTD_buildSuperBlockEntropy_literal(void* const src, size_t srcSiz
     }
 }
 
-/** ZSTD_buildSuperBlockEntropy_sequences() :
+/* ZSTD_buildSuperBlockEntropy_sequences() :
  *  Builds entropy for the super-block sequences.
  *  Stores symbol compression modes and fse table to fseMetadata.
  *  @return : size of fse tables or error code */
@@ -268,7 +268,7 @@ static size_t ZSTD_buildSuperBlockEntropy_sequences(seqStore_t* seqStorePtr,
 }
 
 
-/** ZSTD_buildSuperBlockEntropy() :
+/* ZSTD_buildSuperBlockEntropy() :
  *  Builds entropy for the super-block.
  *  @return : 0 on success or error code */
 static size_t
@@ -298,7 +298,7 @@ ZSTD_buildSuperBlockEntropy(seqStore_t* seqStorePtr,
     return 0;
 }
 
-/** ZSTD_compressSubBlock_literal() :
+/* ZSTD_compressSubBlock_literal() :
  *  Compresses literals section for a sub-block.
  *  When we have to write the Huffman table we will sometimes choose a header
  *  size larger than necessary. This is because we have to pick the header size
@@ -424,7 +424,7 @@ static size_t ZSTD_seqDecompressedSize(seqStore_t const* seqStore, const seqDef*
     return matchLengthSum + litSize;
 }
 
-/** ZSTD_compressSubBlock_sequences() :
+/* ZSTD_compressSubBlock_sequences() :
  *  Compresses sequences section for a sub-block.
  *  fseMetadata->llType, fseMetadata->ofType, and fseMetadata->mlType have
  *  symbol compression modes for the super-block.
@@ -530,7 +530,7 @@ static size_t ZSTD_compressSubBlock_sequences(const ZSTD_fseCTables_t* fseTables
     return op - ostart;
 }
 
-/** ZSTD_compressSubBlock() :
+/* ZSTD_compressSubBlock() :
  *  Compresses a single sub-block.
  *  @return : compressed size of the sub-block
  *            Or 0 if it failed to compress. */
@@ -692,7 +692,7 @@ static int ZSTD_needSequenceEntropyTables(ZSTD_fseCTablesMetadata_t const* fseMe
     return 0;
 }
 
-/** ZSTD_compressSubBlock_multi() :
+/* ZSTD_compressSubBlock_multi() :
  *  Breaks super-block into multiple sub-blocks and compresses them.
  *  Entropy will be written to the first block.
  *  The following blocks will use repeat mode to compress.

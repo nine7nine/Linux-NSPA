@@ -363,7 +363,7 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_matchState_t* ms,
 /*-*************************************
 *  Binary Tree search
 ***************************************/
-/** ZSTD_insertBt1() : add one or multiple positions to tree.
+/* ZSTD_insertBt1() : add one or multiple positions to tree.
  *  ip : assumed <= iend-8 .
  * @return : nb of positions added */
 static U32 ZSTD_insertBt1(
@@ -764,7 +764,7 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
     }
 }
 
-/*************************
+/* ***********************
 *  LDM helper functions  *
 *************************/
 

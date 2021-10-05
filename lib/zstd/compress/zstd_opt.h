@@ -11,9 +11,6 @@
 #ifndef ZSTD_OPT_H
 #define ZSTD_OPT_H
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 #include "zstd_compress_internal.h"
 
@@ -49,8 +46,5 @@ size_t ZSTD_compressBlock_btultra_extDict(
          * because btultra2 is not meant to work with dictionaries
          * and is only specific for the first block (no prefix) */
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* ZSTD_OPT_H */

@@ -11,9 +11,6 @@
 #ifndef ZSTD_DOUBLE_FAST_H
 #define ZSTD_DOUBLE_FAST_H
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 #include "../common/mem.h"      /* U32 */
 #include "zstd_compress_internal.h"     /* ZSTD_CCtx, size_t */
@@ -31,8 +28,5 @@ size_t ZSTD_compressBlock_doubleFast_extDict(
         void const* src, size_t srcSize);
 
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* ZSTD_DOUBLE_FAST_H */

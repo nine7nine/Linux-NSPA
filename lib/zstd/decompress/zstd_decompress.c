@@ -26,9 +26,6 @@
 *  LEGACY_SUPPORT :
 *  if set to 1+, ZSTD_decompress() can decode older formats (v0.1+)
 */
-#ifndef ZSTD_LEGACY_SUPPORT
-#  define ZSTD_LEGACY_SUPPORT 0
-#endif
 
 /*!
  *  MAXWINDOWSIZE_DEFAULT :
@@ -62,19 +59,16 @@
 #include "../common/fse.h"
 #define HUF_STATIC_LINKING_ONLY
 #include "../common/huf.h"
-#include "../common/xxhash.h" /* XXH64_reset, XXH64_update, XXH64_digest, XXH64 */
+#include <linux/xxhash.h> /* xxh64_reset, xxh64_update, xxh64_digest, XXH64 */
 #include "../common/zstd_internal.h"  /* blockProperties_t */
 #include "zstd_decompress_internal.h"   /* ZSTD_DCtx */
 #include "zstd_ddict.h"  /* ZSTD_DDictDictContent */
 #include "zstd_decompress_block.h"   /* ZSTD_decompressBlock_internal */
 
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-#  include "../legacy/zstd_legacy.h"
-#endif
 
 
 
-/*************************************
+/* ***********************************
  * Multiple DDicts Hashset internals *
  *************************************/
 
@@ -92,7 +86,7 @@
  * Returns an index between [0, hashSet->ddictPtrTableSize]
  */
 static size_t ZSTD_DDictHashSet_getIndex(const ZSTD_DDictHashSet* hashSet, U32 dictID) {
-    const U64 hash = XXH64(&dictID, sizeof(U32), 0);
+    const U64 hash = xxh64(&dictID, sizeof(U32), 0);
     /* DDict ptr table size is a multiple of 2, use size - 1 as mask to get index within [0, hashSet->ddictPtrTableSize) */
     return hash & (hashSet->ddictPtrTableSize - 1);
 }
@@ -314,10 +308,6 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
         ZSTD_clearDict(dctx);
         ZSTD_customFree(dctx->inBuff, cMem);
         dctx->inBuff = NULL;
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-        if (dctx->legacyContext)
-            ZSTD_freeLegacyStreamContext(dctx->legacyContext, dctx->previousLegacyVersion);
-#endif
         if (dctx->ddictSet) {
             ZSTD_freeDDictHashSet(dctx->ddictSet, cMem);
             dctx->ddictSet = NULL;
@@ -374,13 +364,10 @@ unsigned ZSTD_isFrame(const void* buffer, size_t size)
         if (magic == ZSTD_MAGICNUMBER) return 1;
         if ((magic & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) return 1;
     }
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-    if (ZSTD_isLegacy(buffer, size)) return 1;
-#endif
     return 0;
 }
 
-/** ZSTD_frameHeaderSize_internal() :
+/* ZSTD_frameHeaderSize_internal() :
  *  srcSize must be large enough to reach header size fields.
  *  note : only works for formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless.
  * @return : size of the Frame Header
@@ -400,7 +387,7 @@ static size_t ZSTD_frameHeaderSize_internal(const void* src, size_t srcSize, ZST
     }
 }
 
-/** ZSTD_frameHeaderSize() :
+/* ZSTD_frameHeaderSize() :
  *  srcSize must be >= ZSTD_frameHeaderSize_prefix.
  * @return : size of the Frame Header,
  *           or an error code (if srcSize is too small) */
@@ -410,7 +397,7 @@ size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 }
 
 
-/** ZSTD_getFrameHeader_advanced() :
+/* ZSTD_getFrameHeader_advanced() :
  *  decode Frame Header, or require larger `srcSize`.
  *  note : only works for formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless
  * @return : 0, `zfhPtr` is correctly filled,
@@ -496,7 +483,7 @@ size_t ZSTD_getFrameHeader_advanced(ZSTD_frameHeader* zfhPtr, const void* src, s
     return 0;
 }
 
-/** ZSTD_getFrameHeader() :
+/* ZSTD_getFrameHeader() :
  *  decode Frame Header, or require larger `srcSize`.
  *  note : this function does not consume input, it only reads it.
  * @return : 0, `zfhPtr` is correctly filled,
@@ -508,19 +495,13 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t src
 }
 
 
-/** ZSTD_getFrameContentSize() :
+/* ZSTD_getFrameContentSize() :
  *  compatible with legacy mode
  * @return : decompressed size of the single frame pointed to be `src` if known, otherwise
  *         - ZSTD_CONTENTSIZE_UNKNOWN if the size cannot be determined
  *         - ZSTD_CONTENTSIZE_ERROR if an error occurred (e.g. invalid magic number, srcSize too small) */
 unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize)
 {
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-    if (ZSTD_isLegacy(src, srcSize)) {
-        unsigned long long const ret = ZSTD_getDecompressedSize_legacy(src, srcSize);
-        return ret == 0 ? ZSTD_CONTENTSIZE_UNKNOWN : ret;
-    }
-#endif
     {   ZSTD_frameHeader zfh;
         if (ZSTD_getFrameHeader(&zfh, src, srcSize) != 0)
             return ZSTD_CONTENTSIZE_ERROR;
@@ -548,7 +529,7 @@ static size_t readSkippableFrameSize(void const* src, size_t srcSize)
     }
 }
 
-/** ZSTD_findDecompressedSize() :
+/* ZSTD_findDecompressedSize() :
  *  compatible with legacy mode
  *  `srcSize` must be the exact length of some number of ZSTD compressed and/or
  *      skippable frames
@@ -594,7 +575,7 @@ unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
     return totalDstSize;
 }
 
-/** ZSTD_getDecompressedSize() :
+/* ZSTD_getDecompressedSize() :
  *  compatible with legacy mode
  * @return : decompressed size if known, 0 otherwise
              note : 0 can mean any of the following :
@@ -610,7 +591,7 @@ unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
 }
 
 
-/** ZSTD_decodeFrameHeader() :
+/* ZSTD_decodeFrameHeader() :
  * `headerSize` must be the size provided by ZSTD_frameHeaderSize().
  * If multiple DDict references are enabled, also will choose the correct DDict to use.
  * @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */
@@ -633,7 +614,7 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
                     dictionary_wrong, "");
 #endif
     dctx->validateChecksum = (dctx->fParams.checksumFlag && !dctx->forceIgnoreChecksum) ? 1 : 0;
-    if (dctx->validateChecksum) XXH64_reset(&dctx->xxhState, 0);
+    if (dctx->validateChecksum) xxh64_reset(&dctx->xxhState, 0);
     dctx->processedCSize += headerSize;
     return 0;
 }
@@ -651,10 +632,6 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
     ZSTD_frameSizeInfo frameSizeInfo;
     ZSTD_memset(&frameSizeInfo, 0, sizeof(ZSTD_frameSizeInfo));
 
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-    if (ZSTD_isLegacy(src, srcSize))
-        return ZSTD_findFrameSizeInfoLegacy(src, srcSize);
-#endif
 
     if ((srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
         && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
@@ -712,7 +689,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
     }
 }
 
-/** ZSTD_findFrameCompressedSize() :
+/* ZSTD_findFrameCompressedSize() :
  *  compatible with legacy mode
  *  `src` must point to the start of a ZSTD frame, ZSTD legacy frame, or skippable frame
  *  `srcSize` must be at least as large as the frame contained
@@ -723,7 +700,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
     return frameSizeInfo.compressedSize;
 }
 
-/** ZSTD_decompressBound() :
+/* ZSTD_decompressBound() :
  *  compatible with legacy mode
  *  `src` must point to the start of a ZSTD frame or a skippeable frame
  *  `srcSize` must be at least as large as the frame contained
@@ -752,7 +729,7 @@ unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
  *   Frame decoding
  ***************************************************************/
 
-/** ZSTD_insertBlock() :
+/* ZSTD_insertBlock() :
  *  insert `src` block into `dctx` history. Useful to track uncompressed blocks. */
 size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize)
 {
@@ -791,28 +768,10 @@ static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
 
 static void ZSTD_DCtx_trace_end(ZSTD_DCtx const* dctx, U64 uncompressedSize, U64 compressedSize, unsigned streaming)
 {
-#if ZSTD_TRACE
-    if (dctx->traceCtx) {
-        ZSTD_Trace trace;
-        ZSTD_memset(&trace, 0, sizeof(trace));
-        trace.version = ZSTD_VERSION_NUMBER;
-        trace.streaming = streaming;
-        if (dctx->ddict) {
-            trace.dictionaryID = ZSTD_getDictID_fromDDict(dctx->ddict);
-            trace.dictionarySize = ZSTD_DDict_dictSize(dctx->ddict);
-            trace.dictionaryIsCold = dctx->ddictIsCold;
-        }
-        trace.uncompressedSize = (size_t)uncompressedSize;
-        trace.compressedSize = (size_t)compressedSize;
-        trace.dctx = dctx;
-        ZSTD_trace_decompress_end(dctx->traceCtx, &trace);
-    }
-#else
     (void)dctx;
     (void)uncompressedSize;
     (void)compressedSize;
     (void)streaming;
-#endif
 }
 
 
@@ -877,7 +836,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 
         if (ZSTD_isError(decodedSize)) return decodedSize;
         if (dctx->validateChecksum)
-            XXH64_update(&dctx->xxhState, op, decodedSize);
+            xxh64_update(&dctx->xxhState, op, decodedSize);
         if (decodedSize != 0)
             op += decodedSize;
         assert(ip != NULL);
@@ -893,7 +852,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     if (dctx->fParams.checksumFlag) { /* Frame content checksum verification */
         RETURN_ERROR_IF(remainingSrcSize<4, checksum_wrong, "");
         if (!dctx->forceIgnoreChecksum) {
-            U32 const checkCalc = (U32)XXH64_digest(&dctx->xxhState);
+            U32 const checkCalc = (U32)xxh64_digest(&dctx->xxhState);
             U32 checkRead;
             checkRead = MEM_readLE32(ip);
             RETURN_ERROR_IF(checkRead != checkCalc, checksum_wrong, "");
@@ -927,27 +886,6 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 
     while (srcSize >= ZSTD_startingInputLength(dctx->format)) {
 
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-        if (ZSTD_isLegacy(src, srcSize)) {
-            size_t decodedSize;
-            size_t const frameSize = ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
-            if (ZSTD_isError(frameSize)) return frameSize;
-            RETURN_ERROR_IF(dctx->staticSize, memory_allocation,
-                "legacy support is not compatible with static dctx");
-
-            decodedSize = ZSTD_decompressLegacy(dst, dstCapacity, src, frameSize, dict, dictSize);
-            if (ZSTD_isError(decodedSize)) return decodedSize;
-
-            assert(decodedSize <= dstCapacity);
-            dst = (BYTE*)dst + decodedSize;
-            dstCapacity -= decodedSize;
-
-            src = (const BYTE*)src + frameSize;
-            srcSize -= frameSize;
-
-            continue;
-        }
-#endif
 
         {   U32 const magicNumber = MEM_readLE32(src);
             DEBUGLOG(4, "reading magic number %08X (expecting %08X)",
@@ -1054,7 +992,7 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
 ****************************************/
 size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx) { return dctx->expected; }
 
-/**
+/*
  * Similar to ZSTD_nextSrcSizeToDecompress(), but when when a block input can be streamed,
  * we allow taking a partial block as the input. Currently only raw uncompressed blocks can
  * be streamed.
@@ -1099,7 +1037,7 @@ ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx) {
 
 static int ZSTD_isSkipFrame(ZSTD_DCtx* dctx) { return dctx->stage == ZSTDds_skipFrame; }
 
-/** ZSTD_decompressContinue() :
+/* ZSTD_decompressContinue() :
  *  srcSize : must be the exact nb of bytes expected (see ZSTD_nextSrcSizeToDecompress())
  *  @return : nb of bytes generated into `dst` (necessarily <= `dstCapacity)
  *            or an error code, which can be tested using ZSTD_isError() */
@@ -1197,7 +1135,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             RETURN_ERROR_IF(rSize > dctx->fParams.blockSizeMax, corruption_detected, "Decompressed Block Size Exceeds Maximum");
             DEBUGLOG(5, "ZSTD_decompressContinue: decoded size from block : %u", (unsigned)rSize);
             dctx->decodedSize += rSize;
-            if (dctx->validateChecksum) XXH64_update(&dctx->xxhState, dst, rSize);
+            if (dctx->validateChecksum) xxh64_update(&dctx->xxhState, dst, rSize);
             dctx->previousDstEnd = (char*)dst + rSize;
 
             /* Stay on the same stage until we are finished streaming the block. */
@@ -1230,7 +1168,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
         assert(srcSize == 4);  /* guaranteed by dctx->expected */
         {
             if (dctx->validateChecksum) {
-                U32 const h32 = (U32)XXH64_digest(&dctx->xxhState);
+                U32 const h32 = (U32)xxh64_digest(&dctx->xxhState);
                 U32 const check32 = MEM_readLE32(src);
                 DEBUGLOG(4, "ZSTD_decompressContinue: checksum : calculated %08X :: %08X read", (unsigned)h32, (unsigned)check32);
                 RETURN_ERROR_IF(check32 != h32, checksum_wrong, "");
@@ -1389,9 +1327,6 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
     assert(dctx != NULL);
-#if ZSTD_TRACE
-    dctx->traceCtx = ZSTD_trace_decompress_begin(dctx);
-#endif
     dctx->expected = ZSTD_startingInputLength(dctx->format);  /* dctx->format must be properly set */
     dctx->stage = ZSTDds_getFrameHeaderSize;
     dctx->processedCSize = 0;
@@ -1911,39 +1846,12 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
         case zdss_loadHeader :
             DEBUGLOG(5, "stage zdss_loadHeader (srcSize : %u)", (U32)(iend - ip));
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-            if (zds->legacyVersion) {
-                RETURN_ERROR_IF(zds->staticSize, memory_allocation,
-                    "legacy support is incompatible with static dctx");
-                {   size_t const hint = ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
-                    if (hint==0) zds->streamStage = zdss_init;
-                    return hint;
-            }   }
-#endif
             {   size_t const hSize = ZSTD_getFrameHeader_advanced(&zds->fParams, zds->headerBuffer, zds->lhSize, zds->format);
                 if (zds->refMultipleDDicts && zds->ddictSet) {
                     ZSTD_DCtx_selectFrameDDict(zds);
                 }
                 DEBUGLOG(5, "header size : %u", (U32)hSize);
                 if (ZSTD_isError(hSize)) {
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-                    U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);
-                    if (legacyVersion) {
-                        ZSTD_DDict const* const ddict = ZSTD_getDDict(zds);
-                        const void* const dict = ddict ? ZSTD_DDict_dictContent(ddict) : NULL;
-                        size_t const dictSize = ddict ? ZSTD_DDict_dictSize(ddict) : 0;
-                        DEBUGLOG(5, "ZSTD_decompressStream: detected legacy version v0.%u", legacyVersion);
-                        RETURN_ERROR_IF(zds->staticSize, memory_allocation,
-                            "legacy support is incompatible with static dctx");
-                        FORWARD_IF_ERROR(ZSTD_initLegacyStream(&zds->legacyContext,
-                                    zds->previousLegacyVersion, legacyVersion,
-                                    dict, dictSize), "");
-                        zds->legacyVersion = zds->previousLegacyVersion = legacyVersion;
-                        {   size_t const hint = ZSTD_decompressLegacyStream(zds->legacyContext, legacyVersion, output, input);
-                            if (hint==0) zds->streamStage = zdss_init;   /* or stay in stage zdss_loadHeader */
-                            return hint;
-                    }   }
-#endif
                     return hSize;   /* error */
                 }
                 if (hSize != 0) {   /* need more input */

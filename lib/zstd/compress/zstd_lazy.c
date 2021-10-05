@@ -56,7 +56,7 @@ ZSTD_updateDUBT(ZSTD_matchState_t* ms,
 }
 
 
-/** ZSTD_insertDUBT1() :
+/* ZSTD_insertDUBT1() :
  *  sort one already inserted but unsorted position
  *  assumption : curr >= btlow == (curr - btmask)
  *  doesn't fail */
@@ -376,7 +376,7 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
 }
 
 
-/** ZSTD_BtFindBestMatch() : Tree updater, providing best match */
+/* ZSTD_BtFindBestMatch() : Tree updater, providing best match */
 FORCE_INLINE_TEMPLATE size_t
 ZSTD_BtFindBestMatch( ZSTD_matchState_t* ms,
                 const BYTE* const ip, const BYTE* const iLimit,
@@ -872,7 +872,7 @@ ZSTD_compressBlock_lazy_generic(
                         ZSTD_matchState_t* ms,
                         const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
 
-    /**
+    /*
      * This table is indexed first by the four ZSTD_dictMode_e values, and then
      * by the two searchMethod_e values. NULLs are placed for configurations
      * that should never occur (extDict modes go to the other implementation
@@ -934,7 +934,7 @@ ZSTD_compressBlock_lazy_generic(
     }
 
     /* Match Loop */
-#if defined(__GNUC__) && defined(__x86_64__)
+#if defined(__x86_64__)
     /* I've measured random a 5% speed loss on levels 5 & 6 (greedy) when the
      * code alignment is perturbed. To fix the instability align the loop on 32-bytes.
      */
@@ -1232,7 +1232,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     ip += (ip == prefixStart);
 
     /* Match Loop */
-#if defined(__GNUC__) && defined(__x86_64__)
+#if defined(__x86_64__)
     /* I've measured random a 5% speed loss on levels 5 & 6 (greedy) when the
      * code alignment is perturbed. To fix the instability align the loop on 32-bytes.
      */

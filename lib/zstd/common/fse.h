@@ -12,9 +12,6 @@
  * You may select, at your option, one of the above-listed licenses.
 ****************************************************************** */
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 #ifndef FSE_H
 #define FSE_H
@@ -50,7 +47,7 @@ extern "C" {
 #define FSE_VERSION_STRING FSE_EXPAND_AND_QUOTE(FSE_LIB_VERSION)
 
 #define FSE_VERSION_NUMBER  (FSE_VERSION_MAJOR *100*100 + FSE_VERSION_MINOR *100 + FSE_VERSION_RELEASE)
-FSE_PUBLIC_API unsigned FSE_versionNumber(void);   /**< library version number; to be used when checking dll version */
+FSE_PUBLIC_API unsigned FSE_versionNumber(void);   /*< library version number; to be used when checking dll version */
 
 
 /*-****************************************
@@ -289,7 +286,7 @@ If there is an error, the function will return an error code, which can be teste
 
 #endif  /* FSE_H */
 
-#if defined(FSE_STATIC_LINKING_ONLY) && !defined(FSE_H_FSE_STATIC_LINKING_ONLY)
+#if !defined(FSE_H_FSE_STATIC_LINKING_ONLY)
 #define FSE_H_FSE_STATIC_LINKING_ONLY
 
 /* *** Dependency *** */
@@ -318,7 +315,7 @@ If there is an error, the function will return an error code, which can be teste
  ***************************************** */
 
 unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus);
-/**< same as FSE_optimalTableLog(), which used `minus==2` */
+/*< same as FSE_optimalTableLog(), which used `minus==2` */
 
 /* FSE_compress_wksp() :
  * Same as FSE_compress2(), but using an externally allocated scratch buffer (`workSpace`).
@@ -328,10 +325,10 @@ unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsi
 size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
 
 size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits);
-/**< build a fake FSE_CTable, designed for a flat distribution, where each symbol uses nbBits */
+/*< build a fake FSE_CTable, designed for a flat distribution, where each symbol uses nbBits */
 
 size_t FSE_buildCTable_rle (FSE_CTable* ct, unsigned char symbolValue);
-/**< build a fake FSE_CTable, designed to compress always the same symbolValue */
+/*< build a fake FSE_CTable, designed to compress always the same symbolValue */
 
 /* FSE_buildCTable_wksp() :
  * Same as FSE_buildCTable(), but using an externally allocated scratch buffer (`workSpace`).
@@ -344,26 +341,26 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsi
 #define FSE_BUILD_DTABLE_WKSP_SIZE(maxTableLog, maxSymbolValue) (sizeof(short) * (maxSymbolValue + 1) + (1ULL << maxTableLog) + 8)
 #define FSE_BUILD_DTABLE_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) ((FSE_BUILD_DTABLE_WKSP_SIZE(maxTableLog, maxSymbolValue) + sizeof(unsigned) - 1) / sizeof(unsigned))
 FSE_PUBLIC_API size_t FSE_buildDTable_wksp(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
-/**< Same as FSE_buildDTable(), using an externally allocated `workspace` produced with `FSE_BUILD_DTABLE_WKSP_SIZE_U32(maxSymbolValue)` */
+/*< Same as FSE_buildDTable(), using an externally allocated `workspace` produced with `FSE_BUILD_DTABLE_WKSP_SIZE_U32(maxSymbolValue)` */
 
 size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits);
-/**< build a fake FSE_DTable, designed to read a flat distribution where each symbol uses nbBits */
+/*< build a fake FSE_DTable, designed to read a flat distribution where each symbol uses nbBits */
 
 size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
-/**< build a fake FSE_DTable, designed to always generate the same symbolValue */
+/*< build a fake FSE_DTable, designed to always generate the same symbolValue */
 
 #define FSE_DECOMPRESS_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) (FSE_DTABLE_SIZE_U32(maxTableLog) + FSE_BUILD_DTABLE_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) + (FSE_MAX_SYMBOL_VALUE + 1) / 2 + 1)
 #define FSE_DECOMPRESS_WKSP_SIZE(maxTableLog, maxSymbolValue) (FSE_DECOMPRESS_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) * sizeof(unsigned))
 size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize);
-/**< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DECOMPRESS_WKSP_SIZE_U32(maxLog, maxSymbolValue)` */
+/*< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DECOMPRESS_WKSP_SIZE_U32(maxLog, maxSymbolValue)` */
 
 size_t FSE_decompress_wksp_bmi2(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize, int bmi2);
-/**< Same as FSE_decompress_wksp() but with dynamic BMI2 support. Pass 1 if your CPU supports BMI2 or 0 if it doesn't. */
+/*< Same as FSE_decompress_wksp() but with dynamic BMI2 support. Pass 1 if your CPU supports BMI2 or 0 if it doesn't. */
 
 typedef enum {
-   FSE_repeat_none,  /**< Cannot use the previous table */
-   FSE_repeat_check, /**< Can use the previous table but it must be checked */
-   FSE_repeat_valid  /**< Can use the previous table and it is assumed to be valid */
+   FSE_repeat_none,  /*< Cannot use the previous table */
+   FSE_repeat_check, /*< Can use the previous table but it must be checked */
+   FSE_repeat_valid  /*< Can use the previous table and it is assumed to be valid */
  } FSE_repeat;
 
 /* *****************************************
@@ -386,7 +383,7 @@ static void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* CStatePtr, unsig
 
 static void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* CStatePtr);
 
-/**<
+/*<
 These functions are inner components of FSE_compress_usingCTable().
 They allow the creation of custom streams, mixing multiple tables and bit sources.
 
@@ -445,7 +442,7 @@ static unsigned char FSE_decodeSymbol(FSE_DState_t* DStatePtr, BIT_DStream_t* bi
 
 static unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr);
 
-/**<
+/*<
 Let's now decompose FSE_decompress_usingDTable() into its unitary components.
 You will decode FSE-encoded symbols from the bitStream,
 and also any other bitFields you put in, **in reverse order**.
@@ -711,6 +708,3 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 #endif /* FSE_STATIC_LINKING_ONLY */
 
 
-#if defined (__cplusplus)
-}
-#endif

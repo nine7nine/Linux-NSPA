@@ -11,16 +11,13 @@
 #ifndef ZSTD_COMMON_CPU_H
 #define ZSTD_COMMON_CPU_H
 
-/**
+/*
  * Implementation taken from folly/CpuId.h
  * https://github.com/facebook/folly/blob/master/folly/CpuId.h
  */
 
 #include "mem.h"
 
-#ifdef _MSC_VER
-#include <intrin.h>
-#endif
 
 typedef struct {
     U32 f1c;
@@ -34,23 +31,7 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
     U32 f1d = 0;
     U32 f7b = 0;
     U32 f7c = 0;
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-    int reg[4];
-    __cpuid((int*)reg, 0);
-    {
-        int const n = reg[0];
-        if (n >= 1) {
-            __cpuid((int*)reg, 1);
-            f1c = (U32)reg[2];
-            f1d = (U32)reg[3];
-        }
-        if (n >= 7) {
-            __cpuidex((int*)reg, 7, 0);
-            f7b = (U32)reg[1];
-            f7c = (U32)reg[2];
-        }
-    }
-#elif defined(__i386__) && defined(__PIC__) && !defined(__clang__) && defined(__GNUC__)
+#if defined(__i386__) && defined(__PIC__) && !defined(__clang__) && defined(__GNUC__)
     /* The following block like the normal cpuid branch below, but gcc
      * reserves ebx for use of its pic register so we must specially
      * handle the save and restore to avoid clobbering the register

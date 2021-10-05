@@ -19,32 +19,19 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#if !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON)
-#include <arm_neon.h>
-#endif
 #include "compiler.h"
 #include "mem.h"
 #include "debug.h"                 /* assert, DEBUGLOG, RAWLOG, g_debuglevel */
 #include "error_private.h"
 #define ZSTD_STATIC_LINKING_ONLY
-#include "../zstd.h"
+#include <linux/zstd.h>
 #define FSE_STATIC_LINKING_ONLY
 #include "fse.h"
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
-#ifndef XXH_STATIC_LINKING_ONLY
-#  define XXH_STATIC_LINKING_ONLY  /* XXH64_state_t */
-#endif
-#include "xxhash.h"                /* XXH_reset, update, digest */
-#ifndef ZSTD_NO_TRACE
-#  include "zstd_trace.h"
-#else
-#  define ZSTD_TRACE 0
-#endif
+#include <linux/xxhash.h>                /* XXH_reset, update, digest */
+#define ZSTD_TRACE 0
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 /* ---- static assert (debug) --- */
 #define ZSTD_STATIC_ASSERT(c) DEBUG_STATIC_ASSERT(c)
@@ -61,7 +48,7 @@ extern "C" {
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
-/**
+/*
  * Ignore: this is an internal helper.
  *
  * This is a helper function to help force C99-correctness during compilation.
@@ -75,7 +62,7 @@ void _force_has_format_string(const char *format, ...) {
   (void)format;
 }
 
-/**
+/*
  * Ignore: this is an internal helper.
  *
  * We want to force this function invocation to be syntactically correct, but
@@ -86,7 +73,7 @@ void _force_has_format_string(const char *format, ...) {
     _force_has_format_string(__VA_ARGS__); \
   }
 
-/**
+/*
  * Return the specified error if the condition evaluates to true.
  *
  * In debug modes, prints additional information.
@@ -103,7 +90,7 @@ void _force_has_format_string(const char *format, ...) {
     return ERROR(err); \
   }
 
-/**
+/*
  * Unconditionally return the specified error.
  *
  * In debug modes, prints additional information.
@@ -118,7 +105,7 @@ void _force_has_format_string(const char *format, ...) {
     return ERROR(err); \
   } while(0);
 
-/**
+/*
  * If the provided expression evaluates to an error code, returns that error code.
  *
  * In debug modes, prints additional information.
@@ -247,20 +234,12 @@ static UNUSED_ATTR const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
 *  Shared functions to include for inlining
 *********************************************/
 static void ZSTD_copy8(void* dst, const void* src) {
-#if !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON)
-    vst1_u8((uint8_t*)dst, vld1_u8((const uint8_t*)src));
-#else
     ZSTD_memcpy(dst, src, 8);
-#endif
 }
 
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 static void ZSTD_copy16(void* dst, const void* src) {
-#if !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON)
-    vst1q_u8((uint8_t*)dst, vld1q_u8((const uint8_t*)src));
-#else
     ZSTD_memcpy(dst, src, 16);
-#endif
 }
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }
 
@@ -381,7 +360,7 @@ typedef struct {
     U32 matchLength;
 } ZSTD_sequenceLength;
 
-/**
+/*
  * Returns the ZSTD_sequenceLength for the given sequences. It handles the decoding of long sequences
  * indicated by longLengthPos and longLengthID, and adds MINMATCH back to matchLength.
  */
@@ -401,7 +380,7 @@ MEM_STATIC ZSTD_sequenceLength ZSTD_getSequenceLength(seqStore_t const* seqStore
     return seqLen;
 }
 
-/**
+/*
  * Contains the compressed frame size and an upper-bound for the decompressed frame size.
  * Note: before using `compressedSize`, check for errors using ZSTD_isError().
  *       similarly, before using `decompressedBound`, check for errors using:
@@ -425,17 +404,8 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus 
 {
     assert(val != 0);
     {
-#   if defined(_MSC_VER)   /* Visual */
-#       if STATIC_BMI2 == 1
-            return _lzcnt_u32(val)^31;
-#       else
-            unsigned long r=0;
-            return _BitScanReverse(&r, val) ? (unsigned)r : 0;
-#       endif
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
+#   if (__GNUC__ >= 3)   /* GCC Intrinsic */
         return __builtin_clz (val) ^ 31;
-#   elif defined(__ICCARM__)    /* IAR Intrinsic */
-        return 31 - __CLZ(val);
 #   else   /* Software version */
         static const U32 DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
         U32 v = val;
@@ -476,8 +446,5 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                        const void* src, size_t srcSize);
 
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

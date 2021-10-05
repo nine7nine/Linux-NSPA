@@ -1030,7 +1030,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
      * measure that it is worse, please put up a pull request.
      */
     {
-#if defined(__GNUC__) && !defined(__clang__)
+#if !defined(__clang__)
         const int kUseUpdateFseState = 1;
 #else
         const int kUseUpdateFseState = 0;
@@ -1138,7 +1138,7 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
                 BIT_DStream_endOfBuffer < BIT_DStream_completed &&
                 BIT_DStream_completed < BIT_DStream_overflow);
 
-#if defined(__GNUC__) && defined(__x86_64__)
+#if defined(__x86_64__)
         /* Align the decompression loop to 32 + 16 bytes.
          *
          * zstd compiled with gcc-9 on an Intel i9-9900k shows 10% decompression

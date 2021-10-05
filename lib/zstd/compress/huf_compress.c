@@ -15,9 +15,6 @@
 /* **************************************************************
 *  Compiler specifics
 ****************************************************************/
-#ifdef _MSC_VER    /* Visual Studio */
-#  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
-#endif
 
 
 /* **************************************************************
@@ -224,7 +221,7 @@ typedef struct nodeElt_s {
     BYTE nbBits;
 } nodeElt;
 
-/**
+/*
  * HUF_setMaxHeight():
  * Enforces maxNbBits on the Huffman tree described in huffNode.
  *
@@ -380,7 +377,7 @@ typedef struct {
   rankPos rankPosition[RANK_POSITION_TABLE_SIZE];
 } HUF_buildCTable_wksp_tables;
 
-/**
+/*
  * HUF_sort():
  * Sorts the symbols [0, maxSymbolValue] by count[symbol] in decreasing order.
  *
@@ -429,7 +426,7 @@ static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValu
 }
 
 
-/** HUF_buildCTable_wksp() :
+/* HUF_buildCTable_wksp() :
  *  Same as HUF_buildCTable(), but using externally allocated scratch buffer.
  *  `workSpace` must be aligned on 4-bytes boundaries, and be at least as large as sizeof(HUF_buildCTable_wksp_tables).
  */
@@ -478,7 +475,7 @@ static int HUF_buildTree(nodeElt* huffNode, U32 maxSymbolValue)
     return nonNullRank;
 }
 
-/**
+/*
  * HUF_buildCTableFromTree():
  * Build the CTable given the Huffman tree in huffNode.
  *
@@ -906,35 +903,3 @@ size_t HUF_compress4X_repeat (void* dst, size_t dstSize,
                                  hufTable, repeat, preferRepeat, bmi2);
 }
 
-#ifndef ZSTD_NO_UNUSED_FUNCTIONS
-/** HUF_buildCTable() :
- * @return : maxNbBits
- *  Note : count is used before tree is written, so they can safely overlap
- */
-size_t HUF_buildCTable (HUF_CElt* tree, const unsigned* count, unsigned maxSymbolValue, unsigned maxNbBits)
-{
-    HUF_buildCTable_wksp_tables workspace;
-    return HUF_buildCTable_wksp(tree, count, maxSymbolValue, maxNbBits, &workspace, sizeof(workspace));
-}
-
-size_t HUF_compress1X (void* dst, size_t dstSize,
-                 const void* src, size_t srcSize,
-                 unsigned maxSymbolValue, unsigned huffLog)
-{
-    unsigned workSpace[HUF_WORKSPACE_SIZE_U32];
-    return HUF_compress1X_wksp(dst, dstSize, src, srcSize, maxSymbolValue, huffLog, workSpace, sizeof(workSpace));
-}
-
-size_t HUF_compress2 (void* dst, size_t dstSize,
-                const void* src, size_t srcSize,
-                unsigned maxSymbolValue, unsigned huffLog)
-{
-    unsigned workSpace[HUF_WORKSPACE_SIZE_U32];
-    return HUF_compress4X_wksp(dst, dstSize, src, srcSize, maxSymbolValue, huffLog, workSpace, sizeof(workSpace));
-}
-
-size_t HUF_compress (void* dst, size_t maxDstSize, const void* src, size_t srcSize)
-{
-    return HUF_compress2(dst, maxDstSize, src, srcSize, 255, HUF_TABLELOG_DEFAULT);
-}
-#endif

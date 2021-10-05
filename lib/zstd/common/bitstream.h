@@ -14,9 +14,6 @@
 #ifndef BITSTREAM_H_MODULE
 #define BITSTREAM_H_MODULE
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 /*
 *  This API consists of small unitary functions, which must be inlined for best performance.
 *  Since link-time-optimization is not available for all compilers,
@@ -35,13 +32,6 @@ extern "C" {
 /*=========================================
 *  Target specific
 =========================================*/
-#ifndef ZSTD_NO_INTRINSICS
-#  if defined(__BMI__) && defined(__GNUC__)
-#    include <immintrin.h>   /* support for bextr (experimental) */
-#  elif defined(__ICCARM__)
-#    include <intrinsics.h>
-#  endif
-#endif
 
 #define STREAM_ACCUMULATOR_MIN_32  25
 #define STREAM_ACCUMULATOR_MIN_64  57
@@ -141,17 +131,8 @@ MEM_STATIC unsigned BIT_highbit32 (U32 val)
 {
     assert(val != 0);
     {
-#   if defined(_MSC_VER)   /* Visual */
-#       if STATIC_BMI2 == 1
-		return _lzcnt_u32(val) ^ 31;
-#       else
-		unsigned long r = 0;
-		return _BitScanReverse(&r, val) ? (unsigned)r : 0;
-#       endif
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* Use GCC Intrinsic */
+#   if (__GNUC__ >= 3)   /* Use GCC Intrinsic */
         return __builtin_clz (val) ^ 31;
-#   elif defined(__ICCARM__)    /* IAR Intrinsic */
-        return 31 - __CLZ(val);
 #   else   /* Software version */
         static const unsigned DeBruijnClz[32] = { 0,  9,  1, 10, 13, 21,  2, 29,
                                                  11, 14, 16, 18, 22, 25,  3, 30,
@@ -337,12 +318,8 @@ MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getMiddleBits(size_t bitContainer, U32 c
 
 MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
 {
-#if defined(STATIC_BMI2) && STATIC_BMI2 == 1
-	return  _bzhi_u64(bitContainer, nbBits);
-#else
     assert(nbBits < BIT_MASK_SIZE);
     return bitContainer & BIT_mask[nbBits];
-#endif
 }
 
 /*! BIT_lookBits() :
@@ -456,8 +433,5 @@ MEM_STATIC unsigned BIT_endOfDStream(const BIT_DStream_t* DStream)
     return ((DStream->ptr == DStream->start) && (DStream->bitsConsumed == sizeof(DStream->bitContainer)*8));
 }
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* BITSTREAM_H_MODULE */

@@ -32,9 +32,6 @@
 #ifndef DEBUG_H_12987983217
 #define DEBUG_H_12987983217
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 
 /* static assert is triggered at compile time, leaving no runtime artefact.
@@ -100,8 +97,5 @@ extern int g_debuglevel; /* the variable is only declared,
 #endif
 
 
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* DEBUG_H_12987983217 */
