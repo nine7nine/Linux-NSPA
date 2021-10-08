@@ -687,7 +687,9 @@ static void rate_fixup_ratelist(struct ieee80211_vif *vif,
 		}
 
 		/* RC is busted */
-		if (WARN_ON_ONCE(rates[i].idx >= sband->n_bitrates)) {
+		if (unlikely(rates[i].idx >= sband->n_bitrates)) {
+			pr_warn_once("%s: rates[%d].idx == %d >= sband->n_bitrates == %d\n",
+				     __func__, i, rates[i].idx, sband->n_bitrates);
 			rates[i].idx = -1;
 			continue;
 		}
