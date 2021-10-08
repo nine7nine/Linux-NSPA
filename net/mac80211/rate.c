@@ -676,7 +676,9 @@ static void rate_fixup_ratelist(struct ieee80211_vif *vif,
 		}
 
 		if (rates[i].flags & IEEE80211_TX_RC_VHT_MCS) {
-			WARN_ON(ieee80211_rate_get_vht_mcs(&rates[i]) > 9);
+			if (unlikely(ieee80211_rate_get_vht_mcs(&rates[i]) > 9))
+				pr_warn("%s: ieee80211_rate_get_vht_mcs(&rates[%d]) == %d > 9\n",
+					__func__, i, ieee80211_rate_get_vht_mcs(&rates[i]));
 			continue;
 		}
 
