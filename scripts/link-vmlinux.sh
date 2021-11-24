@@ -387,8 +387,8 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 	kallsyms_step 2
 
 	# step 3
-	size1=$(${CONFIG_SHELL} "${srctree}/scripts/file-size.sh" ${kallsymso_prev})
-	size2=$(${CONFIG_SHELL} "${srctree}/scripts/file-size.sh" ${kallsymso})
+	size1=$(${PERL} "${srctree}/scripts/file-size.pl" ${kallsymso_prev})
+	size2=$(${PERL} "${srctree}/scripts/file-size.pl" ${kallsymso})
 
 	if [ $size1 -ne $size2 ] || [ -n "${KALLSYMS_EXTRA_PASS}" ]; then
 		kallsyms_step 3
