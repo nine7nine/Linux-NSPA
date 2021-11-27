@@ -972,7 +972,7 @@ void bfq_weights_tree_remove(struct bfq_data *bfqd,
 	for_each_entity(entity) {
 		struct bfq_sched_data *sd = entity->my_sched_data;
 
-		if (sd->next_in_service || sd->in_service_entity) {
+		if (sd && (sd->next_in_service || sd->in_service_entity)) {
 			/*
 			 * entity is still active, because either
 			 * next_in_service or in_service_entity is not
