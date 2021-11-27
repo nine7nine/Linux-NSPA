@@ -1040,9 +1040,20 @@ extern struct blkcg_policy blkcg_policy_bfq;
 #define for_each_entity_safe(entity, parent) \
 	for (; entity && ({ parent = entity->parent; 1; }); entity = parent)
 
+#define is_root_entity(entity) \
+	(entity->sched_data == NULL)
+
+#define for_each_entity_not_root(entity) \
+	for (; entity && !is_root_entity(entity); entity = entity->parent)
+
+#define for_each_entity_not_root_safe(entity, parent) \
+	for (; entity && !is_root_entity(entity) && \
+	       ({ parent = entity->parent; 1; }); entity = parent)
 #else /* CONFIG_BFQ_GROUP_IOSCHED */
+#define is_root_entity(entity) (false)
+
 /*
- * Next two macros are fake loops when cgroups support is not
+ * Next four macros are fake loops when cgroups support is not
  * enabled. I fact, in such a case, there is only one level to go up
  * (to reach the root group).
  */
@@ -1050,6 +1061,12 @@ extern struct blkcg_policy blkcg_policy_bfq;
 	for (; entity ; entity = NULL)
 
 #define for_each_entity_safe(entity, parent) \
+	for (parent = NULL; entity ; entity = parent)
+
+#define for_each_entity_not_root(entity) \
+	for (; entity ; entity = NULL)
+
+#define for_each_entity_not_root_safe(entity, parent) \
 	for (parent = NULL; entity ; entity = parent)
 #endif /* CONFIG_BFQ_GROUP_IOSCHED */
 
