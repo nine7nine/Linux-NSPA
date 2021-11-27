@@ -975,6 +975,13 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 	bool backshifted = false;
 	unsigned long long min_vstart;
 
+	if (is_root_entity(entity))
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+		goto update;
+#else
+		return;
+#endif
+
 	/* See comments on bfq_fqq_update_budg_for_activation */
 	if (non_blocking_wait_rq && bfq_gt(st->vtime, entity->finish)) {
 		backshifted = true;
@@ -1009,7 +1016,10 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 		entity->on_st_or_in_serv = true;
 	}
 
+	bfq_update_fin_time_enqueue(entity, st, backshifted);
+
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
+update:
 	if (!bfq_entity_to_bfqq(entity)) { /* bfq_group */
 		struct bfq_group *bfqg = bfq_entity_to_bfqg(entity);
 		struct bfq_data *bfqd = bfqg->bfqd;
@@ -1020,8 +1030,6 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 		}
 	}
 #endif
-
-	bfq_update_fin_time_enqueue(entity, st, backshifted);
 }
 
 /**
@@ -1111,7 +1119,8 @@ static void __bfq_activate_requeue_entity(struct bfq_entity *entity,
 {
 	struct bfq_service_tree *st = bfq_entity_service_tree(entity);
 
-	if (sd->in_service_entity == entity || entity->tree == &st->active)
+	if (sd && (sd->in_service_entity == entity ||
+		   entity->tree == &st->active))
 		 /*
 		  * in service or already queued on the active tree,
 		  * requeue or reposition
@@ -1149,7 +1158,7 @@ static void bfq_activate_requeue_entity(struct bfq_entity *entity,
 		sd = entity->sched_data;
 		__bfq_activate_requeue_entity(entity, sd, non_blocking_wait_rq);
 
-		if (!bfq_update_next_in_service(sd, entity, expiration) &&
+		if (sd && !bfq_update_next_in_service(sd, entity, expiration) &&
 		    !requeue)
 			break;
 	}
