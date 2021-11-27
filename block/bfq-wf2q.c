@@ -840,7 +840,7 @@ void bfq_bfqq_served(struct bfq_queue *bfqq, int served)
 		bfqq->service_from_wr += served;
 
 	bfqq->service_from_backlogged += served;
-	for_each_entity(entity) {
+	for_each_entity_not_root(entity) {
 		st = bfq_entity_service_tree(entity);
 
 		entity->service += served;
@@ -1227,7 +1227,7 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 	struct bfq_sched_data *sd;
 	struct bfq_entity *parent = NULL;
 
-	for_each_entity_safe(entity, parent) {
+	for_each_entity_not_root_safe(entity, parent) {
 		sd = entity->sched_data;
 
 		if (!__bfq_deactivate_entity(entity, ins_into_idle_tree)) {
@@ -1296,7 +1296,7 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 	 * is not the case.
 	 */
 	entity = parent;
-	for_each_entity(entity) {
+	for_each_entity_not_root(entity) {
 		/*
 		 * Invoke __bfq_requeue_entity on entity, even if
 		 * already active, to requeue/reposition it in the
@@ -1619,7 +1619,7 @@ struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 	 * We can finally update all next-to-serve entities along the
 	 * path from the leaf entity just set in service to the root.
 	 */
-	for_each_entity(entity) {
+	for_each_entity_not_root(entity) {
 		struct bfq_sched_data *sd = entity->sched_data;
 
 		if (!bfq_update_next_in_service(sd, NULL, false))
@@ -1646,7 +1646,7 @@ bool __bfq_bfqd_reset_in_service(struct bfq_data *bfqd)
 	 * execute the final step: reset in_service_entity along the
 	 * path from entity to the root.
 	 */
-	for_each_entity(entity)
+	for_each_entity_not_root(entity)
 		entity->sched_data->in_service_entity = NULL;
 
 	/*

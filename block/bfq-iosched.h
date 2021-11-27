@@ -1027,18 +1027,9 @@ extern struct blkcg_policy blkcg_policy_bfq;
 /* - interface of the internal hierarchical B-WF2Q+ scheduler - */
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
-/* both next loops stop at one of the child entities of the root group */
+/* stop at one of the child entities of the root group */
 #define for_each_entity(entity)	\
 	for (; entity ; entity = entity->parent)
-
-/*
- * For each iteration, compute parent in advance, so as to be safe if
- * entity is deallocated during the iteration. Such a deallocation may
- * happen as a consequence of a bfq_put_queue that frees the bfq_queue
- * containing entity.
- */
-#define for_each_entity_safe(entity, parent) \
-	for (; entity && ({ parent = entity->parent; 1; }); entity = parent)
 
 #define is_root_entity(entity) \
 	(entity->sched_data == NULL)
@@ -1046,6 +1037,12 @@ extern struct blkcg_policy blkcg_policy_bfq;
 #define for_each_entity_not_root(entity) \
 	for (; entity && !is_root_entity(entity); entity = entity->parent)
 
+/*
+ * For each iteration, compute parent in advance, so as to be safe if
+ * entity is deallocated during the iteration. Such a deallocation may
+ * happen as a consequence of a bfq_put_queue that frees the bfq_queue
+ * containing entity.
+ */
 #define for_each_entity_not_root_safe(entity, parent) \
 	for (; entity && !is_root_entity(entity) && \
 	       ({ parent = entity->parent; 1; }); entity = parent)
@@ -1053,15 +1050,12 @@ extern struct blkcg_policy blkcg_policy_bfq;
 #define is_root_entity(entity) (false)
 
 /*
- * Next four macros are fake loops when cgroups support is not
+ * Next three macros are fake loops when cgroups support is not
  * enabled. I fact, in such a case, there is only one level to go up
  * (to reach the root group).
  */
 #define for_each_entity(entity)	\
 	for (; entity ; entity = NULL)
-
-#define for_each_entity_safe(entity, parent) \
-	for (parent = NULL; entity ; entity = parent)
 
 #define for_each_entity_not_root(entity) \
 	for (; entity ; entity = NULL)
