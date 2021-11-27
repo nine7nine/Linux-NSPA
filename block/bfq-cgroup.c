@@ -436,7 +436,7 @@ void bfq_init_entity(struct bfq_entity *entity, struct bfq_group *bfqg)
 		 */
 		bfqg_and_blkg_get(bfqg);
 	}
-	entity->parent = bfqg->my_entity; /* NULL for root group */
+	entity->parent = &bfqg->entity;
 	entity->sched_data = &bfqg->sched_data;
 }
 
