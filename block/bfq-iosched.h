@@ -1027,13 +1027,14 @@ extern struct blkcg_policy blkcg_policy_bfq;
 /* - interface of the internal hierarchical B-WF2Q+ scheduler - */
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
-/* stop at one of the child entities of the root group */
+/* stop at root group */
 #define for_each_entity(entity)	\
 	for (; entity ; entity = entity->parent)
 
 #define is_root_entity(entity) \
 	(entity->sched_data == NULL)
 
+/* stop at one of the child entities of the root group */
 #define for_each_entity_not_root(entity) \
 	for (; entity && !is_root_entity(entity); entity = entity->parent)
 
