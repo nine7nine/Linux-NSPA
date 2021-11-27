@@ -933,6 +933,16 @@ void bfq_weights_tree_add(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 inc_counter:
 	bfqq->weight_counter->num_active++;
 	bfqq->ref++;
+
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+	if (!entity->in_groups_with_pending_reqs) {
+		struct bfq_group *bfqg =
+			container_of(entity->parent, struct bfq_group, entity);
+
+		entity->in_groups_with_pending_reqs = true;
+		bfqg->num_entities_with_pending_reqs++;
+	}
+#endif
 }
 
 /*
@@ -949,6 +959,17 @@ void __bfq_weights_tree_remove(struct bfq_data *bfqd,
 		return;
 
 	bfqq->weight_counter->num_active--;
+
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
+	if (bfqq->entity.in_groups_with_pending_reqs) {
+		struct bfq_group *bfqg = container_of(bfqq->entity.parent,
+				struct bfq_group, entity);
+
+		bfqq->entity.in_groups_with_pending_reqs = false;
+		bfqg->num_entities_with_pending_reqs--;
+	}
+#endif
+
 	if (bfqq->weight_counter->num_active > 0)
 		goto reset_entity_pointer;
 
