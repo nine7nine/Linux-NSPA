@@ -17,6 +17,8 @@ struct winesync_sem_args {
 };
 
 struct winesync_wait_args {
+	__u64 sigmask;
+	__u64 sigsetsize;
 	__u64 timeout;
 	__u64 objs;
 	__u32 count;
