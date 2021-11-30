@@ -5,9 +5,11 @@
  * Copyright (C) 2021 Zebediah Figura
  */
 
+#include <linux/compat.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/xarray.h>
 #include <uapi/linux/winesync.h>
@@ -405,11 +407,20 @@ static int setup_wait(struct winesync_device *dev,
 		      const struct winesync_wait_args *args, bool all,
 		      ktime_t *ret_timeout, struct winesync_q **ret_q)
 {
+	const void __user *sigmask = u64_to_user_ptr(args->sigmask);
 	const __u32 count = args->count;
 	struct winesync_q *q;
 	ktime_t timeout = 0;
 	__u32 *ids;
 	__u32 i, j;
+	int ret;
+
+	if (in_compat_syscall())
+		ret = set_compat_user_sigmask(sigmask, args->sigsetsize);
+	else
+		ret = set_user_sigmask(sigmask, args->sigsetsize);
+	if (ret < 0)
+		return ret;
 
 	if (!args->owner)
 		return -EINVAL;
@@ -560,6 +571,7 @@ static int winesync_wait_any(struct winesync_device *dev, void __user *argp)
 	}
 
 	kfree(q);
+	restore_saved_sigmask_unless(ret == -ERESTARTSYS);
 	return ret;
 }
 
@@ -641,6 +653,7 @@ static int winesync_wait_all(struct winesync_device *dev, void __user *argp)
 	}
 
 	kfree(q);
+	restore_saved_sigmask_unless(ret == -ERESTARTSYS);
 	return ret;
 }
 
