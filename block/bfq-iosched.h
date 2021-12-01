@@ -295,6 +295,9 @@ struct bfq_queue {
 
 	/* node for active/idle bfqq list inside parent bfqd */
 	struct list_head bfqq_list;
+	/* Member of parent's bfqg children list */
+	struct hlist_node children_node;
+
 
 	/* associated @bfq_ttime struct */
 	struct bfq_ttime ttime;
@@ -934,6 +937,9 @@ struct bfq_group {
 
 	struct bfq_entity entity;
 	struct bfq_sched_data sched_data;
+
+	/* bfq_queues under this entity */
+	struct hlist_head children;
 
 	struct bfq_data *bfqd;
 
