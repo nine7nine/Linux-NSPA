@@ -645,7 +645,7 @@ void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		   struct bfq_group *bfqg)
 {
 	struct bfq_entity *entity = &bfqq->entity;
-	struct bfq_group *old_parent = bfq_group(bfqq);
+	struct bfq_group *old_parent = bfqq_group(bfqq);
 
 	/* No point to move bfqq to the same group */
 	if (old_parent == bfqg)
