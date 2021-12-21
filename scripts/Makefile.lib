@@ -476,10 +476,10 @@ quiet_cmd_xzmisc = XZMISC  $@
 zstd_stream_size = $(shell $(ZSTD) -1c --stream-size=0 --no-content-size </dev/null >/dev/null 2>&1 && printf '%s' '--stream-size=$(total_size) --no-content-size')
 
 quiet_cmd_zstd = ZSTD    $@
-      cmd_zstd = { cat $(real-prereqs) | $(ZSTD) $(zstd_stream_size) -19; $(size_append); } > $@
+      cmd_zstd = { cat $(real-prereqs) | $(ZSTD) $(zstd_stream_size) -$(CONFIG_KERNEL_ZSTD_LEVEL) -T0; $(size_append); } > $@
 
 quiet_cmd_zstd22 = ZSTD22  $@
-      cmd_zstd22 = { cat $(real-prereqs) | $(ZSTD) $(zstd_stream_size) -22 --ultra; $(size_append); } > $@
+      cmd_zstd22 = { cat $(real-prereqs) | $(ZSTD) $(zstd_stream_size) -22 --ultra -T0; $(size_append); } > $@
 
 # ASM offsets
 # ---------------------------------------------------------------------------
