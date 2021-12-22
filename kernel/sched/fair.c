@@ -886,6 +886,13 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	schedstat_add(cfs_rq->exec_clock, delta_exec);
 
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
+	if (sched_feat(FORCE_MIN_VRUNTIME)) {
+		/*
+		 * Force advance min_vruntime at the runqueue rate, this
+		 * ensures it cannot get stuck due to placement trickery.
+		 */
+		cfs_rq->min_vruntime += __calc_delta(delta_exec, NICE_0_LOAD, &cfs_rq->load);
+	}
 	update_min_vruntime(cfs_rq);
 
 	if (entity_is_task(curr)) {
