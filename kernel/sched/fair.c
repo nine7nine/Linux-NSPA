@@ -585,8 +585,15 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 			vruntime = min_vruntime(vruntime, se->vruntime);
 	}
 
-	/* ensure we never gain time by being placed backwards. */
-	cfs_rq->min_vruntime = max_vruntime(cfs_rq->min_vruntime, vruntime);
+	/*
+	 * When there is contention, make sure min_vruntime never goes
+	 * backwards, this would violate forward progress. Without contention
+	 * however, min_vruntime should simply follow the only task around.
+	 */
+	if (cfs_rq->nr_running > 1)
+		vruntime = max_vruntime(cfs_rq->min_vruntime, vruntime);
+
+	cfs_rq->min_vruntime = vruntime;
 }
 
 static inline bool __entity_less(struct rb_node *a, const struct rb_node *b)
