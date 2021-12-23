@@ -4236,7 +4236,12 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	} else {
 		/* sleeps up to a single latency don't count. */
-		unsigned long thresh;
+		u64 now = rq_clock_task(rq_of(cfs_rq));
+		u64 sleep = now - se->exec_start;
+		u64 vtime, thresh;
+
+		/* vtime progression if @se would have been running */
+		vtime = calc_delta_fair(__sched_proportion(sleep, cfs_rq, se), se);
 
 		if (se_is_idle(se))
 			thresh = sysctl_sched_min_granularity;
@@ -4250,11 +4255,10 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 		if (sched_feat(GENTLE_FAIR_SLEEPERS))
 			thresh >>= 1;
 
-		vruntime -= thresh;
+		vruntime -= min(thresh, vtime);
 	}
 
-	/* ensure we never gain time by being placed backwards. */
-	se->vruntime = max_vruntime(se->vruntime, vruntime);
+	se->vruntime = vruntime;
 }
 
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
