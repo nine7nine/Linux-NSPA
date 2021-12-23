@@ -694,23 +694,10 @@ static u64 __sched_period(unsigned long nr_running)
 static bool sched_idle_cfs_rq(struct cfs_rq *cfs_rq);
 
 /*
- * We calculate the wall-time slice from the period by taking a part
- * proportional to the weight.
- *
- * s = p*P[w/rw]
+ * s' = s*P[w/rw]
  */
-static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static u64 __sched_proportion(u64 slice, struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	unsigned int nr_running = cfs_rq->nr_running;
-	struct sched_entity *init_se = se;
-	unsigned int min_gran;
-	u64 slice;
-
-	if (sched_feat(ALT_PERIOD))
-		nr_running = rq_of(cfs_rq)->cfs.h_nr_running;
-
-	slice = __sched_period(nr_running + !se->on_rq);
-
 	for_each_sched_entity(se) {
 		struct load_weight *load;
 		struct load_weight lw;
@@ -728,8 +715,29 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		slice = __calc_delta(slice, se->load.weight, load);
 	}
 
+	return slice;
+}
+
+/*
+ * We calculate the wall-time slice from the period by taking a part
+ * proportional to the weight.
+ *
+ * s = p*P[w/rw]
+ */
+static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	unsigned int nr_running = cfs_rq->nr_running;
+	unsigned int min_gran;
+	u64 slice;
+
+	if (sched_feat(ALT_PERIOD))
+		nr_running = rq_of(cfs_rq)->cfs.h_nr_running;
+
+	slice = __sched_period(nr_running + !se->on_rq);
+	slice = __sched_proportion(slice, cfs_rq, se);
+
 	if (sched_feat(BASE_SLICE)) {
-		if (se_is_idle(init_se) && !sched_idle_cfs_rq(cfs_rq))
+		if (se_is_idle(se) && !sched_idle_cfs_rq(cfs_rq))
 			min_gran = sysctl_sched_idle_min_granularity;
 		else
 			min_gran = sysctl_sched_min_granularity;
