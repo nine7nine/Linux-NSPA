@@ -647,7 +647,10 @@ void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	struct bfq_entity *entity = &bfqq->entity;
 	struct bfq_group *old_parent = bfqq_group(bfqq);
 
-	/* No point to move bfqq to the same group */
+	/*
+	* No point to move bfqq to the same group, which can happen when
+	* root group is offlined
+	*/
 	if (old_parent == bfqg)
 		return;
 
