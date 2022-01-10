@@ -48,6 +48,7 @@ descriptions of data structures and algorithms.
    page_migration
    page_frags
    page_owner
+   page_table_check
    remap_file_pages
    slub
    split_page_table_lock
