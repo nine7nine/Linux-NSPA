@@ -231,7 +231,10 @@ struct ec_sensors_data {
 	acpi_handle aml_mutex;
 	/* number of board EC sensors */
 	u8 nr_sensors;
-	/* number of EC registers to read (sensor might span more than 1 register) */
+	/*
+	 * number of EC registers to read
+	 * (sensor might span more than 1 register)
+	 */
 	u8 nr_registers;
 	/* number of unique register banks */
 	u8 nr_banks;
@@ -375,9 +378,7 @@ static int asus_ec_block_read(const struct device *dev,
 			"Concurrent access to the ACPI EC detected.\nRace condition possible.");
 	}
 
-	/*
-	 * read registers minimizing bank switches.
-	 */
+	/* read registers minimizing bank switches. */
 	for (ibank = 0; ibank < ec->nr_banks; ibank++) {
 		if (bank != ec->banks[ibank]) {
 			bank = ec->banks[ibank];
@@ -644,7 +645,7 @@ static int __init configure_sensor_setup(struct device *dev)
 	dev_info(dev, "board has %d EC sensors that span %d registers",
 		 ec_data->nr_sensors, ec_data->nr_registers);
 
-	hwdev = devm_hwmon_device_register_with_info(dev, "asus_ec_sensors",
+	hwdev = devm_hwmon_device_register_with_info(dev, "asusec",
 						     ec_data, chip_info, NULL);
 
 	return PTR_ERR_OR_ZERO(hwdev);
