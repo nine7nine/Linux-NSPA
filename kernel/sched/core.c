@@ -372,7 +372,7 @@ static inline void sched_core_dequeue(struct rq *rq, struct task_struct *p) { }
  * part of the period that we allow rt tasks to run in us.
  * default: 0.95s
  */
-int sysctl_sched_rt_runtime = 950000;
+int sysctl_sched_rt_runtime = 980000;
 
 
 /*
