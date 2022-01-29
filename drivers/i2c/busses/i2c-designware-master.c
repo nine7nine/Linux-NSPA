@@ -897,9 +897,9 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 		return amd_i2c_adap_quirk(dev);
 
 	if (dev->flags & ACCESS_NO_IRQ_SUSPEND) {
-		irq_flags = IRQF_NO_SUSPEND;
+		irq_flags = IRQF_NO_SUSPEND | IRQF_NO_THREAD;
 	} else {
-		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;
+		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND | IRQF_NO_THREAD;
 	}
 
 	i2c_dw_disable_int(dev);
