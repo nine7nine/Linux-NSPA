@@ -145,6 +145,7 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc)
 	record_irq_time(desc);
 
 	for_each_action_of_desc(desc, action) {
+	        bool irqs_were_off = irqs_disabled();
 		irqreturn_t res;
 
 		/*
@@ -158,7 +159,8 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc)
 		res = action->handler(irq, action->dev_id);
 		trace_irq_handler_exit(irq, action, res);
 
-		if (WARN_ONCE(!irqs_disabled(),"irq %u handler %pS enabled interrupts\n",
+		if (WARN_ONCE(irqs_were_off && !irqs_disabled(),
+			      "irq %u handler %pF enabled interrupts\n",
 			      irq, action->handler))
 			local_irq_disable();
 
