@@ -2039,14 +2039,14 @@ static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
 		return;
 
 	if (!async && !(hctx->flags & BLK_MQ_F_BLOCKING)) {
-		int cpu = get_cpu();
+		int cpu = get_cpu_light();
 		if (cpumask_test_cpu(cpu, hctx->cpumask)) {
 			__blk_mq_run_hw_queue(hctx);
-			put_cpu();
+			put_cpu_light();
 			return;
 		}
 
-		put_cpu();
+		put_cpu_light();
 	}
 
 	spin_lock_irqsave(&hctx->queue->queue_lock, flag);

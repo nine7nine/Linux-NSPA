@@ -118,11 +118,7 @@ struct task_group;
 
 #define task_is_running(task)		(READ_ONCE((task)->__state) == TASK_RUNNING)
 
-#define task_is_traced(task)		((READ_ONCE(task->__state) & __TASK_TRACED) != 0)
-
 #define task_is_stopped(task)		((READ_ONCE(task->__state) & __TASK_STOPPED) != 0)
-
-#define task_is_stopped_or_traced(task)	((READ_ONCE(task->__state) & (__TASK_STOPPED | __TASK_TRACED)) != 0)
 
 /*
  * Special states are those that do not use the normal wait-loop pattern. See
@@ -1116,6 +1112,9 @@ struct task_struct {
 	/* Restored if set_restore_sigmask() was used: */
 	sigset_t			saved_sigmask;
 	struct sigpending		pending;
+#ifdef CONFIG_RT_DELAYED_SIGNALS
+	struct kernel_siginfo		forced_info;
+#endif
 	unsigned long			sas_ss_sp;
 	size_t				sas_ss_size;
 	unsigned int			sas_ss_flags;
@@ -2042,6 +2041,167 @@ static inline void clear_tsk_need_resched(struct task_struct *tsk)
 static inline int test_tsk_need_resched(struct task_struct *tsk)
 {
 	return unlikely(test_tsk_thread_flag(tsk,TIF_NEED_RESCHED));
+}
+
+#ifdef CONFIG_PREEMPT_LAZY
+static inline void set_tsk_need_resched_lazy(struct task_struct *tsk)
+{
+	set_tsk_thread_flag(tsk,TIF_NEED_RESCHED_LAZY);
+}
+
+static inline void clear_tsk_need_resched_lazy(struct task_struct *tsk)
+{
+	clear_tsk_thread_flag(tsk,TIF_NEED_RESCHED_LAZY);
+}
+
+static inline int test_tsk_need_resched_lazy(struct task_struct *tsk)
+{
+	return unlikely(test_tsk_thread_flag(tsk,TIF_NEED_RESCHED_LAZY));
+}
+
+static inline int need_resched_lazy(void)
+{
+	return test_thread_flag(TIF_NEED_RESCHED_LAZY);
+}
+
+static inline int need_resched_now(void)
+{
+	return test_thread_flag(TIF_NEED_RESCHED);
+}
+
+#else
+static inline void clear_tsk_need_resched_lazy(struct task_struct *tsk) { }
+static inline int need_resched_lazy(void) { return 0; }
+
+static inline int need_resched_now(void)
+{
+	return test_thread_flag(TIF_NEED_RESCHED);
+}
+
+#endif
+
+#ifdef CONFIG_PREEMPT_RT
+
+static inline bool task_state_match_and(struct task_struct *tsk, long state)
+{
+	unsigned long flags;
+	bool match = false;
+
+	raw_spin_lock_irqsave(&tsk->pi_lock, flags);
+	if (READ_ONCE(tsk->__state) & state)
+		match = true;
+	else if (tsk->saved_state & state)
+		match = true;
+	raw_spin_unlock_irqrestore(&tsk->pi_lock, flags);
+	return match;
+}
+
+static inline int __task_state_match_eq(struct task_struct *tsk, long state)
+{
+	int match = 0;
+
+	if (READ_ONCE(tsk->__state) == state)
+		match = 1;
+	else if (tsk->saved_state == state)
+		match = -1;
+
+	return match;
+}
+
+static inline int task_state_match_eq(struct task_struct *tsk, long state)
+{
+	unsigned long flags;
+	int match;
+
+	raw_spin_lock_irqsave(&tsk->pi_lock, flags);
+	match = __task_state_match_eq(tsk, state);
+	raw_spin_unlock_irqrestore(&tsk->pi_lock, flags);
+	return match;
+}
+
+static inline bool task_state_match_and_set(struct task_struct *tsk, long state,
+					    long new_state)
+{
+	unsigned long flags;
+	bool match = false;
+
+	raw_spin_lock_irqsave(&tsk->pi_lock, flags);
+	if (READ_ONCE(tsk->__state) & state) {
+		WRITE_ONCE(tsk->__state, new_state);
+		match = true;
+	} else if (tsk->saved_state & state) {
+		tsk->saved_state = new_state;
+		match = true;
+	}
+	raw_spin_unlock_irqrestore(&tsk->pi_lock, flags);
+	return match;
+}
+
+static inline bool task_state_match_eq_set(struct task_struct *tsk, long state,
+					   long new_state)
+{
+	unsigned long flags;
+	bool match = false;
+
+	raw_spin_lock_irqsave(&tsk->pi_lock, flags);
+	if (READ_ONCE(tsk->__state) == state) {
+		WRITE_ONCE(tsk->__state, new_state);
+		match = true;
+	} else if (tsk->saved_state == state) {
+		tsk->saved_state = new_state;
+		match = true;
+	}
+	raw_spin_unlock_irqrestore(&tsk->pi_lock, flags);
+	return match;
+}
+
+#else
+
+static inline bool task_state_match_and(struct task_struct *tsk, long state)
+{
+	return READ_ONCE(tsk->__state) & state;
+}
+
+static inline int __task_state_match_eq(struct task_struct *tsk, long state)
+{
+	return READ_ONCE(tsk->__state) == state;
+}
+
+static inline int task_state_match_eq(struct task_struct *tsk, long state)
+{
+	return __task_state_match_eq(tsk, state);
+}
+
+static inline bool task_state_match_and_set(struct task_struct *tsk, long state,
+					    long new_state)
+{
+	if (READ_ONCE(tsk->__state) & state) {
+		WRITE_ONCE(tsk->__state, new_state);
+		return true;
+	}
+	return false;
+}
+
+static inline bool task_state_match_eq_set(struct task_struct *tsk, long state,
+					   long new_state)
+{
+	if (READ_ONCE(tsk->__state) == state) {
+		WRITE_ONCE(tsk->__state, new_state);
+		return true;
+	}
+	return false;
+}
+
+#endif
+
+static inline bool task_is_traced(struct task_struct *tsk)
+{
+	return task_state_match_and(tsk, __TASK_TRACED);
+}
+
+static inline bool task_is_stopped_or_traced(struct task_struct *tsk)
+{
+	return task_state_match_and(tsk, __TASK_STOPPED | __TASK_TRACED);
 }
 
 /*
