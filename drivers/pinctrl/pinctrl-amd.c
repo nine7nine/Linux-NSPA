@@ -1045,8 +1045,8 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		goto out2;
 	}
 
-	ret = devm_request_irq(&pdev->dev, gpio_dev->irq, amd_gpio_irq_handler,
-			       IRQF_SHARED, KBUILD_MODNAME, gpio_dev);
+	ret = devm_request_threaded_irq(&pdev->dev, gpio_dev->irq, NULL, amd_gpio_irq_handler,
+			       IRQF_ONESHOT | IRQF_SHARED, KBUILD_MODNAME, gpio_dev);
 	if (ret)
 		goto out2;
 
