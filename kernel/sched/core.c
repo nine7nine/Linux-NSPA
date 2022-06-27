@@ -2563,6 +2563,11 @@ int push_cpu_stop(void *arg)
 	if (!lowest_rq)
 		goto out_unlock;
 
+	if (unlikely(is_migration_disabled(p))) {
+		p->migration_flags |= MDF_PUSH;
+		goto out_double_unlock;
+	}
+
 	// XXX validate p is still the highest prio task
 	if (task_rq(p) == rq) {
 		deactivate_task(rq, p, 0);
@@ -2571,6 +2576,7 @@ int push_cpu_stop(void *arg)
 		resched_curr(lowest_rq);
 	}
 
+out_double_unlock:
 	double_unlock_balance(rq, lowest_rq);
 
 out_unlock:

@@ -2064,6 +2064,15 @@ retry:
 	if (WARN_ON(next_task == rq->curr))
 		return 0;
 
+	/*
+	 * It is possible the task has running for a while, we need to check
+	 * task migration disable flag again. If task migration is disabled,
+	 * the retry code will retry to push the current running task on this
+	 * CPU away.
+	 */
+	if (unlikely(is_migration_disabled(next_task)))
+		goto retry;
+
 	/* We might release rq lock */
 	get_task_struct(next_task);
 
