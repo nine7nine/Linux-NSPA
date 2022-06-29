@@ -1174,6 +1174,15 @@ static inline raw_spinlock_t *__rq_lockp(struct rq *rq)
 bool cfs_prio_less(struct task_struct *a, struct task_struct *b, bool fi);
 
 /*
+ * A simple wrapper around refcount. An allocated sched_core_cookie's
+ * address is used to compute the cookie of the task.
+ */
+struct sched_core_cookie {
+	refcount_t refcnt;
+	unsigned int __percpu *nr_running;
+};
+
+/*
  * Helpers to check if the CPU's core cookie matches with the task's cookie
  * when core scheduling is enabled.
  * A special case is that the task's cookie always matches with CPU's core
@@ -1802,15 +1811,6 @@ static inline struct cpumask *sched_group_span(struct sched_group *sg)
 static inline struct cpumask *group_balance_mask(struct sched_group *sg)
 {
 	return to_cpumask(sg->sgc->cpumask);
-}
-
-/**
- * group_first_cpu - Returns the first CPU in the cpumask of a sched_group.
- * @group: The group whose first CPU is to be returned.
- */
-static inline unsigned int group_first_cpu(struct sched_group *group)
-{
-	return cpumask_first(sched_group_span(group));
 }
 
 extern int group_balance_cpu(struct sched_group *sg);
